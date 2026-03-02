@@ -138,8 +138,11 @@
       cats.forEach(cat=>{ html+=`<option value="${cat}">${cat}</option>`; });
       html+="</select><div id='productos-container'>"+mostrarProductos(m,"")+"</div>"; 
       html+=mostrarLista(m); 
-      html+=`<br><button onclick='enviarWhatsApp(${m})' style='background:#25D366; color:white; width:90%'>📱 Enviar Cuenta por WhatsApp</button>`;
-      html+=`<br><button onclick='pagarMesa(${m})' style='background:#28a745; color:white; width:90%; margin-top:10px'>💰 Cobrar y Cerrar</button>`;
+      
+      // BOTÓN DE WHATSAPP
+      html+=`<br><button onclick='enviarWhatsApp(${m})' style='background:#25D366; color:white; width:90%'>📱 WhatsApp</button>`;
+      
+      html+=`<br><button onclick='pagarMesa(${m})' style='background:#28a745; color:white; width:90%; margin-top:10px'>💰 Cobrar</button>`;
       html+=`<br><button onclick='verMesas()' style='background:#444; color:white; margin-top:10px'>⬅️ Volver</button>`; 
       document.getElementById("app").innerHTML=html; 
     } 
@@ -190,219 +193,15 @@
         texto += "- " + p.nombre + ": $" + p.precio + "\n";
         total += p.precio;
       });
-      texto += "\n*TOTAL A PAGAR: $" + total + "*\n";
-      texto += "\n¡Gracias por su visita! 😊";
-      let url = "https://api.whatsapp.com/send?text=" + encodeURIComponent(texto);
-      window.open(url, '_blank');
+      texto += "\n*TOTAL: $" + total + "*\n";
+      texto += "\n¡Gracias! 😊";
+      window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(texto), '_blank');
     }
 
     verMesas();
 
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-          .then(reg => console.log('Offline listo'))
-          .catch(err => console.error(err));
-      });
-    }
-  </script> 
-</body> 
-</html>
-      let c=prompt("Nombre de la nueva categoría");
-      if(c && !categorias.includes(c)){
-        categorias.push(c); guardar(); configCategorias();
-      }
-    }
-
-    function eliminarCategoria(i){
-      if(confirm("¿Eliminar categoría y sus productos?")){
-        let cat=categorias[i];
-        menu=menu.filter(p=>p.categoria!==cat);
-        categorias.splice(i,1);
-        guardar(); configCategorias();
-      }
-    }
-
-    function verMesas(){ 
-      let html="<div class='grid'>"; 
-      for(let i=1;i<=12;i++){ 
-        let total=0; if(pedidos[i]) pedidos[i].forEach(p=>total+=p.precio); 
-        let colorMesa = total > 0 ? "border:1px solid #d4af37; background:#252115" : "";
-        html+=`<div class='card' style='${colorMesa}'><b>Mesa ${i}</b><br><span style='color:${total>0?"#0f0":"#666"}'>$${total}</span> 
-        <br><button onclick='abrirMesa(${i})'>${total>0?"Editar":"Abrir"}</button></div>`; 
-      } 
-      html+="</div>"; 
-      document.getElementById("app").innerHTML=html; 
-    } 
-
-    function abrirMesa(m){ 
-      let html=`<h3>Mesa ${m}</h3>`; 
-      let cats = [...new Set(menu.map(p=>p.categoria))];
-      html+=`<select onchange='filtrarCategoria(${m},this.value)' style='width:90%'><option value="">Todo</option>`;
-      cats.forEach(cat=>{ html+=`<option value="${cat}">${cat}</option>`; });
-      html+="</select><div id='productos-container'>"+mostrarProductos(m,"")+"</div>"; 
-      html+=mostrarLista(m); 
-      
-      // NUEVO: BOTÓN WHATSAPP
-      html+=`<br><button onclick='enviarWhatsApp(${m})' style='background:#25D366; color:white; width:90%'>📱 Enviar Cuenta por WhatsApp</button>`;
-      
-      html+=`<br><button onclick='pagarMesa(${m})' style='background:#28a745; color:white; width:90%; margin-top:10px'>💰 Cobrar y Cerrar</button>`;
-      html+=`<br><button onclick='verMesas()' style='background:#444; color:white; margin-top:10px'>⬅️ Volver</button>`; 
-      document.getElementById("app").innerHTML=html; 
-    } 
-
-    function filtrarCategoria(m,cat){ document.getElementById('productos-container').innerHTML = mostrarProductos(m,cat); }
-
-    function mostrarProductos(m,cat){ 
-      let html="<div class='grid'>"; 
-      menu.filter(p=>!cat || p.categoria===cat).forEach(p=>{
-        html+=`<div class='card' style='padding:10px'>${p.nombre}<br><b>$${p.precio}</b><br><button onclick='agregar(${m},"${p.nombre}",${p.precio})'>➕</button></div>`; 
-      }); 
-      return html + "</div>"; 
-    } 
-
-    function agregar(m,n,pr){ 
-      if(!pedidos[m]) pedidos[m]=[]; 
-      pedidos[m].push({nombre:n,precio:pr}); 
-      guardar(); abrirMesa(m); 
-    } 
-
-    function pagarMesa(m){
-      if(confirm("¿Cerrar cuenta de Mesa "+m+"?")){ delete pedidos[m]; guardar(); verMesas(); }
-    }
-
-    function mostrarLista(m){ 
-      let html="<div class='lista'><b>📝 Pedido:</b><br>"; 
-      let total=0; 
-      if(pedidos[m] && pedidos[m].length){ 
-        pedidos[m].forEach((p,i)=>{ 
-          total+=p.precio; 
-          html+=`<div class='item-pedido'><span>${p.nombre}</span> <span>$${p.precio} <button class='btn-danger' onclick='eliminarItem(${m},${i})'>x</button></span></div>`; 
-        }); 
-      }
-      return html + `<br><div style='text-align:right'><b>TOTAL: $${total}</b></div></div>`; 
-    }
-
-    function eliminarItem(m,i){ pedidos[m].splice(i,1); guardar(); abrirMesa(m); }
-
-    // FUNCIÓN WHATSAPP CORREGIDA
-    function enviarWhatsApp(m) {
-      if (!pedidos[m] || pedidos[m].length === 0) {
-        alert("La mesa está vacía");
-        return;
-      }
-      let texto = "*CASA GOURMET* 🍽️\n";
-      texto += "*Detalle Mesa " + m + "*\n\n";
-      let total = 0;
-      pedidos[m].forEach(p => {
-        texto += "- " + p.nombre + ": $" + p.precio + "\n";
-        total += p.precio;
-      });
-      texto += "\n*TOTAL A PAGAR: $" + total + "*\n";
-      texto += "\n¡Gracias por su visita! 😊";
-      let url = "https://api.whatsapp.com/send?text=" + encodeURIComponent(texto);
-      window.open(url, '_blank');
-    }
-
-    verMesas();
-
-    // Registro forzado del Service Worker para modo offline
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-          .then(reg => {
-            console.log('App lista para usar offline');
-            // Forzar actualización si hay cambios
-            reg.update();
-          })
-          .catch(err => console.error('Error de registro', err));
-      });
-    }
-  </script> 
-</body> 
-</html>
-      let c=prompt("Nombre de la nueva categoría");
-      if(c && !categorias.includes(c)){
-        categorias.push(c); guardar(); configCategorias();
-      }
-    }
-
-    function eliminarCategoria(i){
-      if(confirm("¿Eliminar categoría y sus productos?")){
-        let cat=categorias[i];
-        menu=menu.filter(p=>p.categoria!==cat);
-        categorias.splice(i,1);
-        guardar(); configCategorias();
-      }
-    }
-
-    function verMesas(){ 
-      let html="<div class='grid'>"; 
-      for(let i=1;i<=12;i++){ 
-        let total=0; if(pedidos[i]) pedidos[i].forEach(p=>total+=p.precio); 
-        let colorMesa = total > 0 ? "border:1px solid #d4af37; background:#252115" : "";
-        html+=`<div class='card' style='${colorMesa}'><b>Mesa ${i}</b><br><span style='color:${total>0?"#0f0":"#666"}'>$${total}</span> 
-        <br><button onclick='abrirMesa(${i})'>${total>0?"Editar":"Abrir"}</button></div>`; 
-      } 
-      html+="</div>"; 
-      document.getElementById("app").innerHTML=html; 
-    } 
-
-    function abrirMesa(m){ 
-      let html=`<h3>Mesa ${m}</h3>`; 
-      let cats = [...new Set(menu.map(p=>p.categoria))];
-      html+=`<select onchange='filtrarCategoria(${m},this.value)' style='width:90%'><option value="">Todo</option>`;
-      cats.forEach(cat=>{ html+=`<option value="${cat}">${cat}</option>`; });
-      html+="</select><div id='productos-container'>"+mostrarProductos(m,"")+"</div>"; 
-      html+=mostrarLista(m); 
-      html+=`<br><button onclick='pagarMesa(${m})' style='background:#28a745; color:white; width:90%'>💰 Cobrar</button>`;
-      html+=`<br><button onclick='verMesas()' style='background:#444; color:white; margin-top:10px'>⬅️ Volver</button>`; 
-      document.getElementById("app").innerHTML=html; 
-    } 
-
-    function filtrarCategoria(m,cat){ document.getElementById('productos-container').innerHTML = mostrarProductos(m,cat); }
-
-    function mostrarProductos(m,cat){ 
-      let html="<div class='grid'>"; 
-      menu.filter(p=>!cat || p.categoria===cat).forEach(p=>{
-        html+=`<div class='card' style='padding:10px'>${p.nombre}<br><b>$${p.precio}</b><br><button onclick='agregar(${m},"${p.nombre}",${p.precio})'>➕</button></div>`; 
-      }); 
-      return html + "</div>"; 
-    } 
-
-    function agregar(m,n,pr){ 
-      if(!pedidos[m]) pedidos[m]=[]; 
-      pedidos[m].push({nombre:n,precio:pr}); 
-      guardar(); abrirMesa(m); 
-    } 
-
-    function pagarMesa(m){
-      if(confirm("¿Cerrar cuenta de Mesa "+m+"?")){ delete pedidos[m]; guardar(); verMesas(); }
-    }
-
-    function mostrarLista(m){ 
-      let html="<div class='lista'><b>📝 Pedido:</b><br>"; 
-      let total=0; 
-      if(pedidos[m] && pedidos[m].length){ 
-        pedidos[m].forEach((p,i)=>{ 
-          total+=p.precio; 
-          html+=`<div class='item-pedido'><span>${p.nombre}</span> <span>$${p.precio} <button class='btn-danger' onclick='eliminarItem(${m},${i})'>x</button></span></div>`; 
-        }); 
-      }
-      return html + `<br><div style='text-align:right'><b>TOTAL: $${total}</b></div></div>`; 
-    }
-
-    function eliminarItem(m,i){ pedidos[m].splice(i,1); guardar(); abrirMesa(m); }
-
-    verMesas();
-
-    // Registro correcto del Service Worker
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-          .then(reg => console.log('App lista para usar offline'))
-          .catch(err => console.error('Error de registro', err));
-      });
+      navigator.serviceWorker.register('sw.js').then(() => console.log("SW OK"));
     }
   </script> 
 </body> 
