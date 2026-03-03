@@ -186,28 +186,19 @@
         document.getElementById("ticket-reporte").style.display = "none";
         wrapper.style.display = "flex";
 
-        // VERIFICACIÓN OFFLINE DE LIBRERÍA
         if (typeof html2canvas !== 'undefined') {
           setTimeout(() => {
-            html2canvas(document.getElementById("ticket-visual"), { 
-                scale: 2,
-                useCORS: true,
-                allowTaint: true
-            }).then(canvas => {
+            html2canvas(document.getElementById("ticket-visual"), { scale: 2 }).then(canvas => {
                 let link = document.createElement('a');
                 link.download = 'Ticket-' + m + '.png';
                 link.href = canvas.toDataURL("image/png");
                 link.click();
                 wrapper.style.display = "none";
                 cerrarMesa(m, totalMesa);
-            }).catch(() => { 
-                alert("Error al generar imagen. Se cobrará sin ticket.");
-                wrapper.style.display = "none"; 
-                cerrarMesa(m, totalMesa); 
-            });
+            }).catch(() => { wrapper.style.display = "none"; cerrarMesa(m, totalMesa); });
           }, 500);
         } else {
-          alert("Librería local 'html2canvas.min.js' no encontrada. Cobrando sin ticket...");
+          alert("Librería de impresión no encontrada. Cobrando sin ticket...");
           wrapper.style.display = "none";
           cerrarMesa(m, totalMesa);
         }
@@ -233,20 +224,15 @@
       document.getElementById("ticket-reporte").style.display = "block";
       wrapper.style.display = "flex";
 
-      if (typeof html2canvas !== 'undefined') {
-          setTimeout(() => {
-            html2canvas(document.getElementById("ticket-reporte"), {scale: 2}).then(canvas => {
-              let link = document.createElement('a');
-              link.download = 'CIERRE-' + new Date().toLocaleDateString() + '.png';
-              link.href = canvas.toDataURL("image/png");
-              link.click();
-              wrapper.style.display = "none";
-            });
-          }, 500);
-      } else {
-          alert("Librería no disponible.");
+      setTimeout(() => {
+        html2canvas(document.getElementById("ticket-reporte"), {scale: 2}).then(canvas => {
+          let link = document.createElement('a');
+          link.download = 'CIERRE-' + new Date().toLocaleDateString() + '.png';
+          link.href = canvas.toDataURL("image/png");
+          link.click();
           wrapper.style.display = "none";
-      }
+        });
+      }, 500);
     }
 
     function cerrarMesa(m, total){
