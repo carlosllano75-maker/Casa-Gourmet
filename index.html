@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="logo-casa-gourmet.jpg">
   <link rel="manifest" href="manifest.json">
 
-  <script src="html2canvas.min.js" defer></script>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
   <style> 
     body{font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0b0b0b;color:#fff;margin:0;padding-bottom:50px;user-select:none;} 
@@ -39,10 +39,16 @@
       text-align: center; padding: 20px;
     }
 
-    /* Contenedor de tickets oculto para impresión */
-    #ticket-wrapper { position: absolute; left: -9999px; top: 0; }
+    /* Contenedor invisible pero procesable */
+    #ticket-wrapper { 
+      position: absolute; 
+      top: 0; 
+      left: 0; 
+      z-index: -1; 
+      visibility: hidden;
+    }
     .ticket-termico {
-      width: 280px; background: white; color: black; padding: 15px;
+      width: 300px; background: white; color: black; padding: 20px;
       font-family: 'Courier New', Courier, monospace; text-align: center;
     }
     .sep { border-top: 1px dashed #000; margin: 10px 0; }
@@ -52,22 +58,22 @@
 
   <div id="ticket-wrapper">
     <div id="ticket-visual" class="ticket-termico">
-     <img src="logo-casa-gourmet.jpg" style="width: 150px !important; height: auto; filter: grayscale(1); margin-bottom: 10px;"><br>
-      <b>CASA GOURMET</b><br>
+      <img src="logo-casa-gourmet.jpg" style="width: 150px; margin-bottom: 10px;"><br>
+      <b style="font-size: 18px;">CASA GOURMET</b><br>
       <small id="t-fecha"></small><br>
       <div class="sep"></div>
-      <div id="t-items" style="text-align:left; font-size:12px"></div>
+      <div id="t-items" style="text-align:left; font-size:14px"></div>
       <div class="sep"></div>
-      <b id="t-total" style="font-size:18px"></b><br><br>
+      <b id="t-total" style="font-size:20px"></b><br><br>
       <small>¡Gracias por su compra!</small>
     </div>
 
     <div id="ticket-reporte" class="ticket-termico">
-      <img src="logo-casa-gourmet.jpg" style="width: 120px; filter: grayscale(1);"><br>
+      <img src="logo-casa-gourmet.jpg" style="width: 120px;"><br>
       <b>REPORTE DE CIERRE</b><br>
       <small id="r-fecha"></small>
       <div class="sep"></div>
-      <div id="r-items" style="text-align:left; font-size:11px"></div>
+      <div id="r-items" style="text-align:left; font-size:12px"></div>
       <div class="sep"></div>
       <b id="r-total" style="font-size:20px"></b><br>
       <small id="r-cantidad"></small>
@@ -174,6 +180,7 @@
       document.getElementById("app").innerHTML = html;
     }
 
+    // --- FUNCIÓN DE COBRO MEJORADA ---
     function pagarMesa(m){
       if(!pedidos[m] || pedidos[m].length === 0) return;
       if(confirm("¿Cobrar " + m + " e imprimir ticket?")){
@@ -186,7 +193,7 @@
           textoDetalles += p.nombre + ", ";
         });
 
-        // Registrar en historial
+        // Registrar historial
         historialVentas.push({
           hora: new Date().toLocaleTimeString(),
           mesa: m,
@@ -194,45 +201,57 @@
           detalles: textoDetalles.slice(0, -2)
         });
 
+        // Llenar ticket visual
         document.getElementById("t-fecha").innerText = new Date().toLocaleString();
         document.getElementById("t-items").innerHTML = itemsHTML;
         document.getElementById("t-total").innerText = "TOTAL: $" + totalMesa;
 
-        if (typeof html2canvas !== 'undefined') {
-            html2canvas(document.getElementById("ticket-visual"), {scale: 2}).then(canvas => {
-              let link = document.createElement('a');
-              link.download = 'ticket-' + m.toString().replace(/\s+/g, '-') + '.png';
-              link.href = canvas.toDataURL("image/png");
-              link.click();
-            });
-        }
-        
-        cerrarMesa(m, totalMesa);
+        // Proceso de impresión forzado
+        const wrapper = document.getElementById("ticket-wrapper");
+        wrapper.style.visibility = "visible"; // Hacerlo visible para la captura
+
+        html2canvas(document.getElementById("ticket-visual"), {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true
+        }).then(canvas => {
+            let link = document.createElement('a');
+            link.download = 'Ticket-' + m + '-' + Date.now() + '.png';
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+            wrapper.style.visibility = "hidden"; // Ocultar de nuevo
+            cerrarMesa(m, totalMesa);
+        }).catch(err => {
+            alert("Error al generar ticket, pero la mesa se cobrará.");
+            wrapper.style.visibility = "hidden";
+            cerrarMesa(m, totalMesa);
+        });
       }
     }
 
     function imprimirReporte() {
       if(historialVentas.length === 0) return alert("No hay ventas para reportar.");
-      
       let itemsHTML = "";
       historialVentas.forEach(v => {
-        itemsHTML += `<div style="font-size:10px; border-bottom:1px solid #eee; margin-bottom:5px">
-          ${v.hora} - Mesa ${v.mesa}<br>
-          ${v.detalles}<br>
-          <b>$${v.total}</b>
+        itemsHTML += `<div style="font-size:11px; border-bottom:1px solid #ddd; padding:5px 0">
+          <b>${v.hora} - Mesa ${v.mesa}</b><br>${v.detalles}<br><b>$${v.total}</b>
         </div>`;
       });
 
       document.getElementById("r-fecha").innerText = new Date().toLocaleString();
       document.getElementById("r-items").innerHTML = itemsHTML;
       document.getElementById("r-total").innerText = "TOTAL DÍA: $" + ventasDia;
-      document.getElementById("r-cantidad").innerText = "Ventas realizadas: " + historialVentas.length;
+      document.getElementById("r-cantidad").innerText = "Ventas: " + historialVentas.length;
+
+      const wrapper = document.getElementById("ticket-wrapper");
+      wrapper.style.visibility = "visible";
 
       html2canvas(document.getElementById("ticket-reporte"), {scale: 2}).then(canvas => {
         let link = document.createElement('a');
-        link.download = 'REPORTE-CIERRE-' + new Date().toLocaleDateString() + '.png';
+        link.download = 'CIERRE-' + new Date().toLocaleDateString() + '.png';
         link.href = canvas.toDataURL("image/png");
         link.click();
+        wrapper.style.visibility = "hidden";
       });
     }
 
@@ -244,17 +263,12 @@
     }
 
     function reiniciarCaja(){
-      if(confirm("¿Seguro que quieres borrar el historial y ventas del día? Esta acción no se puede deshacer.")){ 
-        ventasDia = 0; 
-        historialVentas = [];
-        guardar(); 
-        config(); 
-      }
+      if(confirm("¿Borrar todo el día?")){ ventasDia = 0; historialVentas = []; guardar(); config(); }
     }
 
-    // --- FUNCIONES DE APOYO ---
+    // Funciones de apoyo (sin cambios)
     function agregarNuevaMesa() {
-      let nombre = prompt("Nombre o Número de la Mesa/Barra:");
+      let nombre = prompt("Nombre:");
       if(nombre && !listaMesas.includes(nombre)) { listaMesas.push(nombre); guardar(); verMesas(); }
     }
     function abrirMesa(m){ 
@@ -342,7 +356,6 @@
       input.click();
     }
 
-    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
     chequearAcceso();
   </script> 
 </body> 
