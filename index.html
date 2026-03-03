@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="logo-casa-gourmet.jpg">
   <link rel="manifest" href="manifest.json">
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+  <script src="html2canvas.min.js" defer></script>
 
   <style> 
     body{font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0b0b0b;color:#fff;margin:0;padding-bottom:50px;user-select:none;} 
@@ -65,7 +65,6 @@
   <div id="bloqueo">
     <img src="logo-casa-gourmet.jpg" style="width:120px; border-radius:50%; margin-bottom:20px">
     <h2 style="color:#d4af37">SISTEMA PROTEGIDO</h2>
-    <p>Ingresa tu clave de licencia para activar:</p>
     <input type="password" id="passInput" placeholder="Clave de acceso" style="text-align:center"><br>
     <button onclick="validarLicencia()">Activar Sistema</button>
     <p id="errorMsg" style="color:red; display:none; margin-top:10px">Clave incorrecta</p>
@@ -107,12 +106,35 @@
     let pedidos=JSON.parse(localStorage.getItem("pedidos")||"{}"); 
     let categorias=JSON.parse(localStorage.getItem("categorias")||"[]"); 
     let ventasDia=JSON.parse(localStorage.getItem("ventasDia")||"0");
+    let listaMesas=JSON.parse(localStorage.getItem("listaMesas")||"[1,2,3,4,5,6,7,8,9,10,11,12]");
 
     function guardar(){
       localStorage.setItem("menu",JSON.stringify(menu));
       localStorage.setItem("pedidos",JSON.stringify(pedidos));
       localStorage.setItem("categorias",JSON.stringify(categorias));
       localStorage.setItem("ventasDia",JSON.stringify(ventasDia));
+      localStorage.setItem("listaMesas",JSON.stringify(listaMesas));
+    }
+
+    function verMesas(){ 
+      let html="<div style='margin-bottom:10px'><button onclick='agregarNuevaMesa()' style='background:#28a745; color:white; width:90%'>+ Nueva Mesa / Barra</button></div>";
+      html+="<div class='grid'>"; 
+      listaMesas.forEach(i => { 
+        let total=0; if(pedidos[i]) pedidos[i].forEach(p=>total+=p.precio); 
+        let colorMesa = total > 0 ? "border:1px solid #d4af37; background:#252115" : "";
+        html+=`<div class='card' style='${colorMesa}'><b>Mesa ${i}</b><br><span style='color:${total>0?"#0f0":"#666"}'>$${total}</span> 
+        <br><button onclick='abrirMesa("${i}")'>${total>0?"Editar":"Abrir"}</button></div>`; 
+      }); 
+      html+="</div>"; document.getElementById("app").innerHTML=html; 
+    } 
+
+    function agregarNuevaMesa() {
+      let nombre = prompt("Nombre o Número de la Mesa/Barra:");
+      if(nombre && !listaMesas.includes(nombre)) {
+        listaMesas.push(nombre);
+        guardar();
+        verMesas();
+      }
     }
 
     function config(){ 
@@ -124,21 +146,31 @@
       </div>`;
       html+="<button onclick='nuevoProducto()'>+ Nuevo Producto</button>";
       html+=" <button onclick='configCategorias()'>📂 Categorías</button>";
+      html+=" <button onclick='configMesas()'>🍽️ Editar Mesas</button>";
       html += `<div class="backup-box"><small style="color:#888; display:block; margin-bottom:10px">COPIA DE SEGURIDAD</small>
           <button onclick="exportarMenu()" style="background:#444; color:#fff; padding:8px 12px">📤 Exportar</button>
           <button onclick="importarMenu()" style="background:#444; color:#fff; padding:8px 12px">📥 Importar</button></div>`;
-      if(menu.length===0) html+="<p style='color:#666'><br>No hay productos.</p>";
-      menu.forEach((p,i)=>{ 
-        html+=`<div class='card' style='margin:10px auto; max-width:400px; display:flex; justify-content:space-between; align-items:center'>
-          <div style='text-align:left'><b>${p.nombre}</b><br><small>${p.categoria}</small></div>
-          <div><b>$${p.precio}</b> <button class='btn-danger' onclick='eliminarProducto(${i})'>🗑️</button></div>
-        </div>`; 
-      }); 
       document.getElementById("app").innerHTML=html; 
     }
 
-    function reiniciarCaja(){
-      if(confirm("¿Seguro que quieres reiniciar las ventas del día a $0?")){ ventasDia = 0; guardar(); config(); }
+    function configMesas() {
+      let html="<h3>Gestionar Mesas</h3>";
+      listaMesas.forEach((m, i) => {
+        html += `<div class='card' style='margin:10px auto; max-width:300px; display:flex; justify-content:space-between; align-items:center'>
+          <span>Mesa ${m}</span>
+          <button class='btn-danger' onclick='eliminarMesa(${i})'>🗑️</button>
+        </div>`;
+      });
+      html += "<br><button onclick='config()'>Volver</button>";
+      document.getElementById("app").innerHTML = html;
+    }
+
+    function eliminarMesa(i) {
+      if(confirm("¿Eliminar esta mesa definitivamente?")) {
+        listaMesas.splice(i, 1);
+        guardar();
+        configMesas();
+      }
     }
 
     function pagarMesa(m){
@@ -152,7 +184,6 @@
           itemsHTML += `<div style="display:flex; justify-content:space-between"><span>${p.nombre}</span><span>$${p.precio}</span></div>`;
         });
 
-        // Intentar imprimir si la librería existe
         if (typeof html2canvas !== 'undefined') {
             document.getElementById("t-fecha").innerText = new Date().toLocaleString();
             document.getElementById("t-items").innerHTML = itemsHTML;
@@ -163,13 +194,12 @@
               link.download = 'ticket-mesa-'+m+'.png';
               link.href = canvas.toDataURL("image/png");
               link.click();
-              cerrarMesa(m, totalMesa);
             });
-        } else {
-            // Si no hay internet para la librería, cobrar de todas formas
-            alert("Nota: El ticket visual no se generó (sin conexión), pero la venta se guardará.");
-            cerrarMesa(m, totalMesa);
         }
+        
+        // Cierre inmediato de la mesa para que desaparezca el pedido
+        cerrarMesa(m, totalMesa);
+        alert("Cobro registrado.");
       }
     }
 
@@ -178,6 +208,49 @@
         delete pedidos[m];
         guardar();
         verMesas();
+    }
+
+    function reiniciarCaja(){
+      if(confirm("¿Seguro que quieres reiniciar las ventas del día a $0?")){ ventasDia = 0; guardar(); config(); }
+    }
+
+    function abrirMesa(m){ 
+      let html=`<h3>Mesa ${m}</h3>`; 
+      let cats = [...new Set(menu.map(p=>p.categoria))];
+      html+=`<select onchange='filtrarCategoria("${m}",this.value)' style='width:90%'><option value="">Todo</option>`;
+      cats.forEach(cat=>{ html+=`<option value="${cat}">${cat}</option>`; });
+      html+="</select><div id='productos-container'>"+mostrarProductos(m,"")+"</div>"; 
+      html+=mostrarLista(m); 
+      html+=`<br><button onclick='enviarWhatsApp("${m}")' style='background:#25D366; color:white; width:90%'>📱 WhatsApp</button>`;
+      html+=`<br><button onclick='pagarMesa("${m}")' style='background:#28a745; color:white; width:90%; margin-top:10px'>💰 Cobrar</button>`;
+      html+=`<br><button onclick='verMesas()' style='background:#444; color:white; margin-top:10px'>⬅️ Volver</button>`; 
+      document.getElementById("app").innerHTML=html; 
+    } 
+
+    function filtrarCategoria(m,cat){ document.getElementById('productos-container').innerHTML = mostrarProductos(m,cat); }
+    function mostrarProductos(m,cat){ 
+      let html="<div class='grid'>"; 
+      menu.filter(p=>!cat || p.categoria===cat).forEach(p=>{
+        html+=`<div class='card' style='padding:10px'>${p.nombre}<br><b>$${p.precio}</b><br><button onclick='agregar("${m}","${p.nombre}",${p.precio})'>➕</button></div>`; 
+      }); 
+      return html + "</div>"; 
+    } 
+
+    function agregar(m,n,pr){ if(!pedidos[m]) pedidos[m]=[]; pedidos[m].push({nombre:n,precio:pr}); guardar(); abrirMesa(m); }
+    function mostrarLista(m){ 
+      let html="<div class='lista'><b>📝 Pedido:</b><br>"; let total=0; 
+      if(pedidos[m]){ pedidos[m].forEach((p,i)=>{ total+=p.precio; html+=`<div class='item-pedido'><span>${p.nombre}</span> <span>$${p.precio} <button class='btn-danger' onclick='eliminarItem("${m}",${i})'>x</button></span></div>`; }); }
+      return html + `<br><b>TOTAL: $${total}</b></div>`; 
+    }
+    function eliminarItem(m,i){ pedidos[m].splice(i,1); guardar(); abrirMesa(m); }
+
+    function enviarWhatsApp(m) {
+      if (!pedidos[m]) return;
+      let texto = "*CASA GOURMET*\n*Mesa " + m + "*\n\n";
+      let total = 0;
+      pedidos[m].forEach(p => { texto += "- " + p.nombre + ": $" + p.precio + "\n"; total += p.precio; });
+      texto += "\n*TOTAL: $" + total + "*";
+      window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(texto), '_blank');
     }
 
     function exportarMenu() {
@@ -239,59 +312,8 @@
       if(confirm("¿Eliminar?")){ menu=menu.filter(p=>p.categoria!==categorias[i]); categorias.splice(i,1); guardar(); configCategorias(); }
     }
 
-    function verMesas(){ 
-      let html="<div class='grid'>"; 
-      for(let i=1;i<=12;i++){ 
-        let total=0; if(pedidos[i]) pedidos[i].forEach(p=>total+=p.precio); 
-        let colorMesa = total > 0 ? "border:1px solid #d4af37; background:#252115" : "";
-        html+=`<div class='card' style='${colorMesa}'><b>Mesa ${i}</b><br><span style='color:${total>0?"#0f0":"#666"}'>$${total}</span> 
-        <br><button onclick='abrirMesa(${i})'>${total>0?"Editar":"Abrir"}</button></div>`; 
-      } 
-      html+="</div>"; document.getElementById("app").innerHTML=html; 
-    } 
-
-    function abrirMesa(m){ 
-      let html=`<h3>Mesa ${m}</h3>`; 
-      let cats = [...new Set(menu.map(p=>p.categoria))];
-      html+=`<select onchange='filtrarCategoria(${m},this.value)' style='width:90%'><option value="">Todo</option>`;
-      cats.forEach(cat=>{ html+=`<option value="${cat}">${cat}</option>`; });
-      html+="</select><div id='productos-container'>"+mostrarProductos(m,"")+"</div>"; 
-      html+=mostrarLista(m); 
-      html+=`<br><button onclick='enviarWhatsApp(${m})' style='background:#25D366; color:white; width:90%'>📱 WhatsApp</button>`;
-      html+=`<br><button onclick='pagarMesa(${m})' style='background:#28a745; color:white; width:90%; margin-top:10px'>💰 Cobrar</button>`;
-      html+=`<br><button onclick='verMesas()' style='background:#444; color:white; margin-top:10px'>⬅️ Volver</button>`; 
-      document.getElementById("app").innerHTML=html; 
-    } 
-
-    function filtrarCategoria(m,cat){ document.getElementById('productos-container').innerHTML = mostrarProductos(m,cat); }
-    function mostrarProductos(m,cat){ 
-      let html="<div class='grid'>"; 
-      menu.filter(p=>!cat || p.categoria===cat).forEach(p=>{
-        html+=`<div class='card' style='padding:10px'>${p.nombre}<br><b>$${p.precio}</b><br><button onclick='agregar(${m},"${p.nombre}",${p.precio})'>➕</button></div>`; 
-      }); 
-      return html + "</div>"; 
-    } 
-
-    function agregar(m,n,pr){ if(!pedidos[m]) pedidos[m]=[]; pedidos[m].push({nombre:n,precio:pr}); guardar(); abrirMesa(m); }
-    function mostrarLista(m){ 
-      let html="<div class='lista'><b>📝 Pedido:</b><br>"; let total=0; 
-      if(pedidos[m]){ pedidos[m].forEach((p,i)=>{ total+=p.precio; html+=`<div class='item-pedido'><span>${p.nombre}</span> <span>$${p.precio} <button class='btn-danger' onclick='eliminarItem(${m},${i})'>x</button></span></div>`; }); }
-      return html + `<br><b>TOTAL: $${total}</b></div>`; 
-    }
-    function eliminarItem(m,i){ pedidos[m].splice(i,1); guardar(); abrirMesa(m); }
-
-    function enviarWhatsApp(m) {
-      if (!pedidos[m]) return;
-      let texto = "*CASA GOURMET*\n*Mesa " + m + "*\n\n";
-      let total = 0;
-      pedidos[m].forEach(p => { texto += "- " + p.nombre + ": $" + p.precio + "\n"; total += p.precio; });
-      texto += "\n*TOTAL: $" + total + "*";
-      window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(texto), '_blank');
-    }
-
-    // REGISTRO DE SERVICE WORKER PARA MODO OFFLINE
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').then(() => console.log("SW OK")).catch(e => console.log("SW Error", e));
+      navigator.serviceWorker.register('sw.js');
     }
 
     chequearAcceso();
