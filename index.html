@@ -39,17 +39,23 @@
       text-align: center; padding: 20px;
     }
 
-    /* Contenedor invisible pero procesable */
+    /* Ajuste para que el ticket sea procesable por el celular */
     #ticket-wrapper { 
-      position: absolute; 
+      position: fixed; 
       top: 0; 
       left: 0; 
-      z-index: -1; 
-      visibility: hidden;
+      width: 100%; 
+      height: 100%; 
+      background: rgba(0,0,0,0.8); 
+      z-index: 10000; 
+      display: none; /* Se activa solo al imprimir */
+      justify-content: center;
+      align-items: center;
     }
     .ticket-termico {
       width: 300px; background: white; color: black; padding: 20px;
       font-family: 'Courier New', Courier, monospace; text-align: center;
+      border-radius: 5px;
     }
     .sep { border-top: 1px dashed #000; margin: 10px 0; }
   </style> 
@@ -58,17 +64,17 @@
 
   <div id="ticket-wrapper">
     <div id="ticket-visual" class="ticket-termico">
-      <img src="logo-casa-gourmet.jpg" style="width: 150px; margin-bottom: 10px;"><br>
+      <img src="logo-casa-gourmet.jpg" style="width: 180px; margin-bottom: 10px;"><br>
       <b style="font-size: 18px;">CASA GOURMET</b><br>
       <small id="t-fecha"></small><br>
       <div class="sep"></div>
       <div id="t-items" style="text-align:left; font-size:14px"></div>
       <div class="sep"></div>
-      <b id="t-total" style="font-size:20px"></b><br><br>
+      <b id="t-total" style="font-size:22px"></b><br><br>
       <small>¡Gracias por su compra!</small>
     </div>
 
-    <div id="ticket-reporte" class="ticket-termico">
+    <div id="ticket-reporte" class="ticket-termico" style="display:none">
       <img src="logo-casa-gourmet.jpg" style="width: 120px;"><br>
       <b>REPORTE DE CIERRE</b><br>
       <small id="r-fecha"></small>
@@ -180,7 +186,6 @@
       document.getElementById("app").innerHTML = html;
     }
 
-    // --- FUNCIÓN DE COBRO MEJORADA ---
     function pagarMesa(m){
       if(!pedidos[m] || pedidos[m].length === 0) return;
       if(confirm("¿Cobrar " + m + " e imprimir ticket?")){
@@ -193,7 +198,6 @@
           textoDetalles += p.nombre + ", ";
         });
 
-        // Registrar historial
         historialVentas.push({
           hora: new Date().toLocaleTimeString(),
           mesa: m,
@@ -201,36 +205,40 @@
           detalles: textoDetalles.slice(0, -2)
         });
 
-        // Llenar ticket visual
         document.getElementById("t-fecha").innerText = new Date().toLocaleString();
         document.getElementById("t-items").innerHTML = itemsHTML;
         document.getElementById("t-total").innerText = "TOTAL: $" + totalMesa;
 
-        // Proceso de impresión forzado
+        // Mostrar ticket para captura
         const wrapper = document.getElementById("ticket-wrapper");
-        wrapper.style.visibility = "visible"; // Hacerlo visible para la captura
+        document.getElementById("ticket-visual").style.display = "block";
+        document.getElementById("ticket-reporte").style.display = "none";
+        wrapper.style.display = "flex";
 
-        html2canvas(document.getElementById("ticket-visual"), {
-            scale: 2,
-            useCORS: true,
-            allowTaint: true
-        }).then(canvas => {
-            let link = document.createElement('a');
-            link.download = 'Ticket-' + m + '-' + Date.now() + '.png';
-            link.href = canvas.toDataURL("image/png");
-            link.click();
-            wrapper.style.visibility = "hidden"; // Ocultar de nuevo
-            cerrarMesa(m, totalMesa);
-        }).catch(err => {
-            alert("Error al generar ticket, pero la mesa se cobrará.");
-            wrapper.style.visibility = "hidden";
-            cerrarMesa(m, totalMesa);
-        });
+        setTimeout(() => {
+          html2canvas(document.getElementById("ticket-visual"), {
+              scale: 2,
+              useCORS: true,
+              allowTaint: true,
+              logging: false
+          }).then(canvas => {
+              let link = document.createElement('a');
+              link.download = 'Ticket-' + m + '.png';
+              link.href = canvas.toDataURL("image/png");
+              link.click();
+              wrapper.style.display = "none";
+              cerrarMesa(m, totalMesa);
+          }).catch(err => {
+              console.error(err);
+              wrapper.style.display = "none";
+              cerrarMesa(m, totalMesa);
+          });
+        }, 500);
       }
     }
 
     function imprimirReporte() {
-      if(historialVentas.length === 0) return alert("No hay ventas para reportar.");
+      if(historialVentas.length === 0) return alert("No hay ventas hoy.");
       let itemsHTML = "";
       historialVentas.forEach(v => {
         itemsHTML += `<div style="font-size:11px; border-bottom:1px solid #ddd; padding:5px 0">
@@ -244,15 +252,19 @@
       document.getElementById("r-cantidad").innerText = "Ventas: " + historialVentas.length;
 
       const wrapper = document.getElementById("ticket-wrapper");
-      wrapper.style.visibility = "visible";
+      document.getElementById("ticket-visual").style.display = "none";
+      document.getElementById("ticket-reporte").style.display = "block";
+      wrapper.style.display = "flex";
 
-      html2canvas(document.getElementById("ticket-reporte"), {scale: 2}).then(canvas => {
-        let link = document.createElement('a');
-        link.download = 'CIERRE-' + new Date().toLocaleDateString() + '.png';
-        link.href = canvas.toDataURL("image/png");
-        link.click();
-        wrapper.style.visibility = "hidden";
-      });
+      setTimeout(() => {
+        html2canvas(document.getElementById("ticket-reporte"), {scale: 2}).then(canvas => {
+          let link = document.createElement('a');
+          link.download = 'CIERRE-' + new Date().toLocaleDateString() + '.png';
+          link.href = canvas.toDataURL("image/png");
+          link.click();
+          wrapper.style.display = "none";
+        });
+      }, 500);
     }
 
     function cerrarMesa(m, total){
@@ -266,11 +278,11 @@
       if(confirm("¿Borrar todo el día?")){ ventasDia = 0; historialVentas = []; guardar(); config(); }
     }
 
-    // Funciones de apoyo (sin cambios)
     function agregarNuevaMesa() {
       let nombre = prompt("Nombre:");
       if(nombre && !listaMesas.includes(nombre)) { listaMesas.push(nombre); guardar(); verMesas(); }
     }
+
     function abrirMesa(m){ 
       let html=`<h3>Mesa ${m}</h3>`; 
       let cats = [...new Set(menu.map(p=>p.categoria))];
@@ -283,6 +295,7 @@
       html+=`<br><button onclick='verMesas()' style='background:#444; color:white; margin-top:10px'>⬅️ Volver</button>`; 
       document.getElementById("app").innerHTML=html; 
     } 
+
     function filtrarCategoria(m,cat){ document.getElementById('productos-container').innerHTML = mostrarProductos(m,cat); }
     function mostrarProductos(m,cat){ 
       let html="<div class='grid'>"; 
