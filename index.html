@@ -3,7 +3,7 @@
 <head> 
   <meta charset="UTF-8"> 
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"> 
-  <title>Casa Gourmet POS</title>
+  <title>Casa Gourmet POS Pro</title>
   
   <meta name="theme-color" content="#d4af37">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -28,24 +28,65 @@
     h3{color:#d4af37;margin-top:20px}
     #app{padding:10px;text-align:center}
     .item-pedido{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px dashed #333;padding-bottom:5px}
-    /* Estilo nuevo para la sección de respaldo */
     .backup-box{background:#222; padding:15px; border-radius:15px; margin:15px auto; max-width:400px; border:1px dashed #444}
+    
+    /* Estilo para la pantalla de bloqueo */
+    #bloqueo {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: #0b0b0b; z-index: 9999; display: flex;
+      flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 20px;
+    }
   </style> 
 </head> 
 <body> 
-  <header> 
-    <img src="logo-casa-gourmet.jpg" class="logo" onerror="this.src='https://via.placeholder.com/80/d4af37/000?text=Casa+Gourmet'"><br> 
-    <b style="letter-spacing:1px">CASA GOURMET POS</b> 
-  </header> 
-  
-  <div style="text-align:center;padding:15px;background:#161616"> 
-    <button onclick="verMesas()">🍽️ Mesas</button> 
-    <button onclick="config()" style="background:#444;color:#fff">⚙️ Ajustes</button> 
-  </div> 
-  
-  <div id="app"></div> 
-  
+
+  <div id="bloqueo">
+    <img src="logo-casa-gourmet.jpg" style="width:120px; border-radius:50%; margin-bottom:20px">
+    <h2 style="color:#d4af37">SISTEMA PROTEGIDO</h2>
+    <p>Ingresa tu clave de licencia para activar:</p>
+    <input type="password" id="passInput" placeholder="Clave de acceso" style="text-align:center"><br>
+    <button onclick="validarLicencia()">Activar Sistema</button>
+    <p id="errorMsg" style="color:red; display:none; margin-top:10px">Clave incorrecta</p>
+  </div>
+
+  <div id="contenido-app" style="display:none">
+    <header> 
+      <img src="logo-casa-gourmet.jpg" class="logo" onerror="this.src='https://via.placeholder.com/80/d4af37/000?text=Casa+Gourmet'"><br> 
+      <b style="letter-spacing:1px">CASA GOURMET POS PRO</b> 
+    </header> 
+    
+    <div style="text-align:center;padding:15px;background:#161616"> 
+      <button onclick="verMesas()">🍽️ Mesas</button> 
+      <button onclick="config()" style="background:#444;color:#fff">⚙️ Ajustes</button> 
+    </div> 
+    
+    <div id="app"></div> 
+  </div>
+
   <script> 
+    // --- SEGURIDAD ---
+    const CLAVE_MAESTRA = "GOURMET2024"; // <--- CAMBIA TU CLAVE AQUÍ
+
+    function validarLicencia() {
+      const pass = document.getElementById("passInput").value;
+      if(pass === CLAVE_MAESTRA) {
+        localStorage.setItem("licencia_activa", "true");
+        chequearAcceso();
+      } else {
+        document.getElementById("errorMsg").style.display = "block";
+      }
+    }
+
+    function chequearAcceso() {
+      if(localStorage.getItem("licencia_activa") === "true") {
+        document.getElementById("bloqueo").style.display = "none";
+        document.getElementById("contenido-app").style.display = "block";
+        verMesas();
+      }
+    }
+
+    // --- LÓGICA DE LA APP ---
     let menu=JSON.parse(localStorage.getItem("menu")||"[]"); 
     let pedidos=JSON.parse(localStorage.getItem("pedidos")||"{}"); 
     let categorias=JSON.parse(localStorage.getItem("categorias")||"[]"); 
@@ -60,12 +101,11 @@
       let html="<h3>Gestión de Productos</h3><button onclick='nuevoProducto()'>+ Nuevo Producto</button>";
       html+=" <button onclick='configCategorias()'>📂 Categorías</button>";
       
-      // NUEVA SECCIÓN: EXPORTAR E IMPORTAR
       html += `
         <div class="backup-box">
           <small style="color:#888; display:block; margin-bottom:10px">COPIA DE SEGURIDAD</small>
-          <button onclick="exportarMenu()" style="background:#444; color:#fff; padding:8px 12px">📤 Exportar Menú</button>
-          <button onclick="importarMenu()" style="background:#444; color:#fff; padding:8px 12px">📥 Importar Menú</button>
+          <button onclick="exportarMenu()" style="background:#444; color:#fff; padding:8px 12px">📤 Exportar</button>
+          <button onclick="importarMenu()" style="background:#444; color:#fff; padding:8px 12px">📥 Importar</button>
         </div>
       `;
 
@@ -79,7 +119,6 @@
       document.getElementById("app").innerHTML=html; 
     }
 
-    // --- FUNCIONES DE EXPORTAR E IMPORTAR ---
     function exportarMenu() {
       const data = JSON.stringify({ menu, categorias });
       const blob = new Blob([data], { type: 'application/json' });
@@ -90,7 +129,6 @@
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
     }
 
     function importarMenu() {
@@ -104,25 +142,19 @@
           try {
             const content = JSON.parse(readerEvent.target.result);
             if (content.menu && content.categorias) {
-              if (confirm("¿Sobrescribir el menú actual con los datos del archivo?")) {
+              if (confirm("¿Sobrescribir el menú actual?")) {
                 menu = content.menu;
                 categorias = content.categorias;
-                guardar();
-                config();
-                alert("✅ Menú importado con éxito");
+                guardar(); config();
+                alert("✅ Importado con éxito");
               }
-            } else {
-              alert("❌ Archivo no válido para el POS.");
             }
-          } catch (err) {
-            alert("❌ Error al procesar el archivo.");
-          }
+          } catch(err) { alert("Archivo no válido"); }
         };
         reader.readAsText(file);
       };
       input.click();
     }
-    // ----------------------------------------
 
     function nuevoProducto(){ 
       let html="<h3>Nuevo producto</h3>";
@@ -195,10 +227,7 @@
       cats.forEach(cat=>{ html+=`<option value="${cat}">${cat}</option>`; });
       html+="</select><div id='productos-container'>"+mostrarProductos(m,"")+"</div>"; 
       html+=mostrarLista(m); 
-      
-      // BOTÓN DE WHATSAPP
       html+=`<br><button onclick='enviarWhatsApp(${m})' style='background:#25D366; color:white; width:90%'>📱 WhatsApp</button>`;
-      
       html+=`<br><button onclick='pagarMesa(${m})' style='background:#28a745; color:white; width:90%; margin-top:10px'>💰 Cobrar</button>`;
       html+=`<br><button onclick='verMesas()' style='background:#444; color:white; margin-top:10px'>⬅️ Volver</button>`; 
       document.getElementById("app").innerHTML=html; 
@@ -240,22 +269,18 @@
 
     function enviarWhatsApp(m) {
       if (!pedidos[m] || pedidos[m].length === 0) {
-        alert("La mesa está vacía");
-        return;
+        alert("La mesa está vacía"); return;
       }
       let texto = "*CASA GOURMET* 🍽️\n";
       texto += "*Detalle Mesa " + m + "*\n\n";
       let total = 0;
-      pedidos[m].forEach(p => {
-        texto += "- " + p.nombre + ": $" + p.precio + "\n";
-        total += p.precio;
-      });
-      texto += "\n*TOTAL: $" + total + "*\n";
-      texto += "\n¡Gracias! 😊";
+      pedidos[m].forEach(p => { texto += "- " + p.nombre + ": $" + p.precio + "\n"; total += p.precio; });
+      texto += "\n*TOTAL: $" + total + "*\n\n¡Gracias! 😊";
       window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(texto), '_blank');
     }
 
-    verMesas();
+    // INICIO
+    chequearAcceso();
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').then(() => console.log("SW OK"));
