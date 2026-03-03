@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="logo-casa-gourmet.jpg">
   <link rel="manifest" href="manifest.json">
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 
   <style> 
     body{font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0b0b0b;color:#fff;margin:0;padding-bottom:50px;user-select:none;} 
@@ -39,15 +39,11 @@
       text-align: center; padding: 20px;
     }
 
-    /* ESTILO DEL TICKET (Oculto en pantalla, blanco para impresión) */
-    #ticket-wrapper {
-      position: absolute; left: -9999px; top: 0;
-    }
+    #ticket-wrapper { position: absolute; left: -9999px; top: 0; }
     .ticket-termico {
       width: 280px; background: white; color: black; padding: 15px;
       font-family: 'Courier New', Courier, monospace; text-align: center;
     }
-    .ticket-termico b { font-size: 16px; }
     .sep { border-top: 1px dashed #000; margin: 10px 0; }
   </style> 
 </head> 
@@ -126,18 +122,11 @@
         <b style="font-size:20px">$${ventasDia}</b><br>
         <button onclick="reiniciarCaja()" style="background:#222; color:#ff4444; font-size:11px">Limpiar Ventas del Día</button>
       </div>`;
-
       html+="<button onclick='nuevoProducto()'>+ Nuevo Producto</button>";
       html+=" <button onclick='configCategorias()'>📂 Categorías</button>";
-      
-      html += `
-        <div class="backup-box">
-          <small style="color:#888; display:block; margin-bottom:10px">COPIA DE SEGURIDAD DEL MENÚ</small>
+      html += `<div class="backup-box"><small style="color:#888; display:block; margin-bottom:10px">COPIA DE SEGURIDAD</small>
           <button onclick="exportarMenu()" style="background:#444; color:#fff; padding:8px 12px">📤 Exportar</button>
-          <button onclick="importarMenu()" style="background:#444; color:#fff; padding:8px 12px">📥 Importar</button>
-        </div>
-      `;
-
+          <button onclick="importarMenu()" style="background:#444; color:#fff; padding:8px 12px">📥 Importar</button></div>`;
       if(menu.length===0) html+="<p style='color:#666'><br>No hay productos.</p>";
       menu.forEach((p,i)=>{ 
         html+=`<div class='card' style='margin:10px auto; max-width:400px; display:flex; justify-content:space-between; align-items:center'>
@@ -149,12 +138,9 @@
     }
 
     function reiniciarCaja(){
-      if(confirm("¿Seguro que quieres reiniciar las ventas del día a $0?")){
-        ventasDia = 0; guardar(); config();
-      }
+      if(confirm("¿Seguro que quieres reiniciar las ventas del día a $0?")){ ventasDia = 0; guardar(); config(); }
     }
 
-    // --- FUNCION DE COBRO E IMPRESIÓN ---
     function pagarMesa(m){
       if(!pedidos[m] || pedidos[m].length === 0) return;
       
@@ -166,29 +152,34 @@
           itemsHTML += `<div style="display:flex; justify-content:space-between"><span>${p.nombre}</span><span>$${p.precio}</span></div>`;
         });
 
-        // Llenar ticket invisible
-        document.getElementById("t-fecha").innerText = new Date().toLocaleString();
-        document.getElementById("t-items").innerHTML = itemsHTML;
-        document.getElementById("t-total").innerText = "TOTAL: $" + totalMesa;
+        // Intentar imprimir si la librería existe
+        if (typeof html2canvas !== 'undefined') {
+            document.getElementById("t-fecha").innerText = new Date().toLocaleString();
+            document.getElementById("t-items").innerHTML = itemsHTML;
+            document.getElementById("t-total").innerText = "TOTAL: $" + totalMesa;
 
-        // Capturar y descargar imagen
-        html2canvas(document.getElementById("ticket-visual")).then(canvas => {
-          let link = document.createElement('a');
-          link.download = 'ticket-mesa-'+m+'.png';
-          link.href = canvas.toDataURL("image/png");
-          link.click();
-          
-          // Sumar a ventas del día y limpiar mesa
-          ventasDia += totalMesa;
-          delete pedidos[m];
-          guardar();
-          verMesas();
-          alert("Venta guardada y ticket descargado");
-        });
+            html2canvas(document.getElementById("ticket-visual")).then(canvas => {
+              let link = document.createElement('a');
+              link.download = 'ticket-mesa-'+m+'.png';
+              link.href = canvas.toDataURL("image/png");
+              link.click();
+              cerrarMesa(m, totalMesa);
+            });
+        } else {
+            // Si no hay internet para la librería, cobrar de todas formas
+            alert("Nota: El ticket visual no se generó (sin conexión), pero la venta se guardará.");
+            cerrarMesa(m, totalMesa);
+        }
       }
     }
 
-    // --- RESTO DE FUNCIONES ---
+    function cerrarMesa(m, total){
+        ventasDia += total;
+        delete pedidos[m];
+        guardar();
+        verMesas();
+    }
+
     function exportarMenu() {
       const data = JSON.stringify({ menu, categorias });
       const blob = new Blob([data], { type: 'application/json' });
@@ -219,8 +210,7 @@
     }
 
     function nuevoProducto(){ 
-      let html="<h3>Nuevo producto</h3>";
-      html+="<input id='prodNombre' placeholder='Nombre'><br><input id='prodPrecio' type='number' placeholder='Precio'><br><select id='prodCategoria'>";
+      let html="<h3>Nuevo producto</h3><input id='prodNombre' placeholder='Nombre'><br><input id='prodPrecio' type='number' placeholder='Precio'><br><select id='prodCategoria'>";
       categorias.forEach(c=>{ html+=`<option value="${c}">${c}</option>`; });
       html+="</select><br><br><button onclick='guardarNuevoProducto()'>✅ Guardar</button> <button onclick='config()' style='background:#444;color:#fff'>Cancelar</button>";
       document.getElementById("app").innerHTML=html;
@@ -297,6 +287,11 @@
       pedidos[m].forEach(p => { texto += "- " + p.nombre + ": $" + p.precio + "\n"; total += p.precio; });
       texto += "\n*TOTAL: $" + total + "*";
       window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(texto), '_blank');
+    }
+
+    // REGISTRO DE SERVICE WORKER PARA MODO OFFLINE
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').then(() => console.log("SW OK")).catch(e => console.log("SW Error", e));
     }
 
     chequearAcceso();
