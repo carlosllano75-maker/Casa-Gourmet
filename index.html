@@ -28,6 +28,8 @@
     h3{color:#d4af37;margin-top:20px}
     #app{padding:10px;text-align:center}
     .item-pedido{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px dashed #333;padding-bottom:5px}
+    /* Estilo nuevo para la sección de respaldo */
+    .backup-box{background:#222; padding:15px; border-radius:15px; margin:15px auto; max-width:400px; border:1px dashed #444}
   </style> 
 </head> 
 <body> 
@@ -57,6 +59,16 @@
     function config(){ 
       let html="<h3>Gestión de Productos</h3><button onclick='nuevoProducto()'>+ Nuevo Producto</button>";
       html+=" <button onclick='configCategorias()'>📂 Categorías</button>";
+      
+      // NUEVA SECCIÓN: EXPORTAR E IMPORTAR
+      html += `
+        <div class="backup-box">
+          <small style="color:#888; display:block; margin-bottom:10px">COPIA DE SEGURIDAD</small>
+          <button onclick="exportarMenu()" style="background:#444; color:#fff; padding:8px 12px">📤 Exportar Menú</button>
+          <button onclick="importarMenu()" style="background:#444; color:#fff; padding:8px 12px">📥 Importar Menú</button>
+        </div>
+      `;
+
       if(menu.length===0) html+="<p style='color:#666'><br>No hay productos creados.</p>";
       menu.forEach((p,i)=>{ 
         html+=`<div class='card' style='margin:10px auto; max-width:400px; display:flex; justify-content:space-between; align-items:center'>
@@ -66,6 +78,51 @@
       }); 
       document.getElementById("app").innerHTML=html; 
     }
+
+    // --- FUNCIONES DE EXPORTAR E IMPORTAR ---
+    function exportarMenu() {
+      const data = JSON.stringify({ menu, categorias });
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'menu_casa_gourmet.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function importarMenu() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = e => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = readerEvent => {
+          try {
+            const content = JSON.parse(readerEvent.target.result);
+            if (content.menu && content.categorias) {
+              if (confirm("¿Sobrescribir el menú actual con los datos del archivo?")) {
+                menu = content.menu;
+                categorias = content.categorias;
+                guardar();
+                config();
+                alert("✅ Menú importado con éxito");
+              }
+            } else {
+              alert("❌ Archivo no válido para el POS.");
+            }
+          } catch (err) {
+            alert("❌ Error al procesar el archivo.");
+          }
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    }
+    // ----------------------------------------
 
     function nuevoProducto(){ 
       let html="<h3>Nuevo producto</h3>";
