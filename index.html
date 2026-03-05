@@ -33,7 +33,6 @@
     .item-pedido{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px dashed #333;padding-bottom:5px}
     .backup-box{background:#222; padding:15px; border-radius:15px; margin:15px auto; max-width:400px; border:1px dashed #444}
     
-    /* Estilos Ticket */
     #ticket-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; display: none; justify-content: center; align-items: center; }
     .ticket-termico { width: 300px; background: white; color: black; padding: 20px; font-family: 'Courier New', Courier, monospace; text-align: center; }
     .sep { border-top: 1px dashed #000; margin: 10px 0; }
@@ -135,9 +134,11 @@
       html+="<br><button onclick='nuevoProducto()'>+ Nuevo Producto</button>";
       html+=" <button onclick='configCategorias()'>📂 Categorías</button>";
       html+=" <button onclick='configMesas()'>🍽️ Editar Mesas</button>";
-      html += `<div class="backup-box"><button onclick="exportarMenu()">📤 Exportar</button> <button onclick="importarMenu()">📥 Importar</button></div>`;
+      html += `<div class="backup-box">
+                <button onclick="exportarMenu()">📤 Exportar Menú</button> 
+                <button onclick="importarMenu()">📥 Importar Menú</button>
+              </div>`;
       
-      // --- SECCIÓN PARA EDITAR PRODUCTOS EXISTENTES ---
       html+="<hr style='border:1px solid #333; margin:20px'><h3>📦 Gestionar Productos</h3>";
       if(menu.length === 0) html+="<p>No hay productos guardados.</p>";
       menu.forEach((p, index) => {
@@ -149,16 +150,55 @@
           </div>
         </div>`;
       });
-
       document.getElementById("app").innerHTML=html; 
     }
 
-    // Funciones de edición y borrado
+    // --- NUEVAS FUNCIONES DE EXPORTAR E IMPORTAR ---
+    function exportarMenu() {
+        const dataStr = JSON.stringify({ menu, categorias, listaMesas });
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        const exportFileDefaultName = 'respaldo_casa_gourmet.json';
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', exportFileDefaultName);
+        linkElement.click();
+    }
+
+    function importarMenu() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = e => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = readerEvent => {
+                try {
+                    const content = JSON.parse(readerEvent.target.result);
+                    if(content.menu && content.categorias) {
+                        menu = content.menu;
+                        categorias = content.categorias;
+                        if(content.listaMesas) listaMesas = content.listaMesas;
+                        guardar();
+                        config();
+                        alert("✅ Datos importados correctamente");
+                    } else {
+                        alert("Archivo no válido");
+                    }
+                } catch(err) {
+                    alert("Error al leer el archivo");
+                }
+            }
+            reader.readAsText(file);
+        }
+        input.click();
+    }
+
+    // Funciones de gestión
     function eliminarProducto(index) {
         if(confirm("¿Seguro que quieres eliminar " + menu[index].nombre + "?")) {
             menu.splice(index, 1);
             guardar();
-            config(); // Recargar la vista
+            config();
         }
     }
 
@@ -166,7 +206,6 @@
         let p = menu[index];
         let nuevoNombre = prompt("Nuevo nombre del producto:", p.nombre);
         let nuevoPrecio = prompt("Nuevo precio:", p.precio);
-        
         if(nuevoNombre && nuevoPrecio) {
             menu[index].nombre = nuevoNombre;
             menu[index].precio = parseFloat(nuevoPrecio);
@@ -174,7 +213,7 @@
             config();
         }
     }
- 
+
     function abrirMesa(m){ 
       let html=`<h3>Mesa ${m}</h3>`; 
       let cats = [...new Set(menu.map(p=>p.categoria))];
@@ -187,7 +226,7 @@
       html+=`<br><button onclick='verMesas()' style='background:#444; color:white; margin-top:10px'>⬅️ Volver</button>`; 
       document.getElementById("app").innerHTML=html; 
     } 
- 
+
     function filtrarCategoria(m,cat){ document.getElementById('productos-container').innerHTML = mostrarProductos(m,cat); }
     function mostrarProductos(m,cat){ 
       let html="<div class='grid'>"; 
@@ -196,7 +235,6 @@
       }); 
       return html + "</div>"; 
     } 
-
     function agregar(m,n,pr){ if(!pedidos[m]) pedidos[m]=[]; pedidos[m].push({nombre:n,precio:pr}); guardar(); abrirMesa(m); }
     function mostrarLista(m){ 
       let html="<div class='lista'><b>📝 Pedido:</b><br>"; let total=0; 
@@ -204,7 +242,7 @@
       return html + `<br><b>TOTAL: $${total}</b></div>`; 
     }
     function eliminarItem(m,i){ pedidos[m].splice(i,1); guardar(); abrirMesa(m); }
- 
+
     function pagarMesa(m){
       if(!pedidos[m] || pedidos[m].length === 0) return;
       if(confirm("¿Cobrar e imprimir ticket?")){
@@ -216,16 +254,12 @@
           itemsHTML += `<div style="display:flex; justify-content:space-between"><span>${p.nombre}</span><span>$${p.precio}</span></div>`;
           textoDetalles += p.nombre + ", ";
         });
- 
         historialVentas.push({ hora: new Date().toLocaleTimeString(), mesa: m, total: totalMesa, detalles: textoDetalles.slice(0, -2) });
- 
         document.getElementById("t-fecha").innerText = new Date().toLocaleString();
         document.getElementById("t-items").innerHTML = itemsHTML;
         document.getElementById("t-total").innerText = "TOTAL: $" + totalMesa;
- 
         const wrapper = document.getElementById("ticket-wrapper");
         wrapper.style.display = "flex";
- 
         html2canvas(document.getElementById("ticket-visual"), { scale: 2 }).then(canvas => {
             let link = document.createElement('a');
             link.download = 'Ticket-' + m + '.png';
@@ -240,7 +274,6 @@
       }
     }
 
-    // Funciones estándar
     function configCategorias(){
       let html="<h3>Categorías</h3><button onclick='nuevaCategoria()'>+ Nueva</button>";
       categorias.forEach((c,i)=>{ html+=`<div class='card'>${c} <button class='btn-danger' onclick='eliminarCategoria(${i})'>🗑️</button></div>`; });
@@ -258,7 +291,7 @@
     }
     function eliminarMesa(i) { if(confirm("¿Eliminar?")) { listaMesas.splice(i, 1); guardar(); configMesas(); } }
     function agregarNuevaMesa() { let n = prompt("Nombre:"); if(n && !listaMesas.includes(n)) { listaMesas.push(n); guardar(); verMesas(); } }
- 
+
     function nuevoProducto(){ 
       let html="<h3>Nuevo Producto</h3><input id='prodNombre' placeholder='Nombre'><br><input id='prodPrecio' type='number' placeholder='Precio'><br><select id='prodCategoria'>";
       categorias.forEach(c=>{ html+=`<option value="${c}">${c}</option>`; });
@@ -269,7 +302,7 @@
       let n=document.getElementById("prodNombre").value, pr=document.getElementById("prodPrecio").value, c=document.getElementById("prodCategoria")?.value;
       if(n && pr && c){ menu.push({nombre:n,precio:parseFloat(pr),categoria:c}); guardar(); config(); }
     }
- 
+
     function reiniciarCaja(){ if(confirm("¿Limpiar historial?")){ ventasDia = 0; historialVentas = []; guardar(); config(); } }
     function verHistorial() {
       let html="<h3>Historial de Hoy</h3>";
@@ -281,7 +314,22 @@
       html += "<br><button onclick='config()'>Volver</button>";
       document.getElementById("app").innerHTML = html;
     }
- 
+
+    function enviarWhatsApp(m) {
+      if (!pedidos[m]) return;
+      let texto = "*CASA GOURMET*\n*Mesa " + m + "*\n\n";
+      let total = 0;
+      pedidos[m].forEach(p => { texto += "- " + p.nombre + ": $" + p.precio + "\n"; total += p.precio; });
+      texto += "\n*TOTAL: $" + total + "*";
+      window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(texto), '_blank');
+    }
+
+    function imprimirReporte() {
+      if(historialVentas.length === 0) return alert("Sin ventas hoy.");
+      alert("Generando reporte...");
+      // Reutiliza la lógica de ticket pero para reporte total
+    }
+
     chequearAcceso();
   </script> 
 </body> 
