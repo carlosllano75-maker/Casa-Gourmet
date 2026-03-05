@@ -157,9 +157,8 @@
       html+=" <button onclick='configMesas()'>🍽️ Editar Mesas</button>";
       html += `<div class="backup-box"><button onclick="exportarMenu()">📤 Exportar</button> <button onclick="importarMenu()">📥 Importar</button></div>`;
       
-      // SECCIÓN DE EDICIÓN DE PRODUCTOS
       html+="<h3>Lista de Productos</h3>";
-      if(menu.length === 0) html += "<p>No hay productos.</p>";
+      if(menu.length === 0) html += "<p>No hay productos registrados.</p>";
       menu.forEach((p, i) => {
         html += `<div class='card' style='margin:10px auto; max-width:400px; display:flex; justify-content:space-between; align-items:center'>
           <div style='text-align:left'><b>${p.nombre}</b><br><small>${p.categoria}</small></div>
@@ -174,7 +173,6 @@
       document.getElementById("app").innerHTML=html; 
     }
 
-    // NUEVAS FUNCIONES PARA EDITAR PRODUCTOS
     function editarProducto(i){
       let p = menu[i];
       let html=`<h3>Editar Producto</h3>
@@ -188,14 +186,17 @@
     }
 
     function guardarModificacion(i){
-      let n=document.getElementById("editNombre").value, pr=document.getElementById("editPrecio").value, c=document.getElementById("editCategoria").value;
+      let n=document.getElementById("editNombre").value;
+      let pr=document.getElementById("editPrecio").value;
+      let c=document.getElementById("editCategoria").value;
       if(n && pr && c){
         menu[i] = {nombre:n, precio:parseFloat(pr), categoria:c};
-        guardar(); config();
-      }
+        guardar(); 
+        config();
+      } else { alert("Completa todos los campos"); }
     }
 
-    function eliminarProducto(i){ if(confirm("¿Eliminar producto?")){ menu.splice(i,1); guardar(); config(); } }
+    function eliminarProducto(i){ if(confirm("¿Eliminar este producto permanentemente?")){ menu.splice(i,1); guardar(); config(); } }
 
     function pagarMesa(m){
       if(!pedidos[m] || pedidos[m].length === 0) return;
@@ -229,7 +230,7 @@
           setTimeout(() => {
             html2canvas(document.getElementById("ticket-visual"), { scale: 2 }).then(canvas => {
                 let link = document.createElement('a');
-                link.download = 'Ticket-' + m + '.png';
+                link.download = 'Ticket-Mesa-' + m + '.png';
                 link.href = canvas.toDataURL("image/png");
                 link.click();
                 wrapper.style.display = "none";
@@ -325,8 +326,8 @@
       html+="<br><button onclick='config()'>Volver</button>";
       document.getElementById("app").innerHTML=html;
     }
-    function nuevaCategoria(){ let c=prompt("Nombre"); if(c && !categorias.includes(c)){ categorias.push(c); guardar(); configCategorias(); } }
-    function eliminarCategoria(i){ if(confirm("¿Eliminar?")){ menu=menu.filter(p=>p.categoria!==categorias[i]); categorias.splice(i,1); guardar(); configCategorias(); } }
+    function nuevaCategoria(){ let c=prompt("Nombre de la categoría:"); if(c && !categorias.includes(c)){ categorias.push(c); guardar(); configCategorias(); } }
+    function eliminarCategoria(i){ if(confirm("¿Eliminar categoría y sus productos?")){ menu=menu.filter(p=>p.categoria!==categorias[i]); categorias.splice(i,1); guardar(); configCategorias(); } }
     
     function configMesas() {
       let html="<h3>Editar Mesas</h3>";
@@ -334,18 +335,18 @@
       html += "<br><button onclick='config()'>Volver</button>";
       document.getElementById("app").innerHTML = html;
     }
-    function eliminarMesa(i) { if(confirm("¿Eliminar?")) { listaMesas.splice(i, 1); guardar(); configMesas(); } }
-    function agregarNuevaMesa() { let n = prompt("Nombre:"); if(n && !listaMesas.includes(n)) { listaMesas.push(n); guardar(); verMesas(); } }
+    function eliminarMesa(i) { if(confirm("¿Eliminar mesa?")) { listaMesas.splice(i, 1); guardar(); configMesas(); } }
+    function agregarNuevaMesa() { let n = prompt("Nombre o Número de Mesa:"); if(n && !listaMesas.includes(n)) { listaMesas.push(n); guardar(); verMesas(); } }
 
     function nuevoProducto(){ 
-      let html="<h3>Producto</h3><input id='prodNombre' placeholder='Nombre'><br><input id='prodPrecio' type='number' placeholder='Precio'><br><select id='prodCategoria'>";
+      let html="<h3>Nuevo Producto</h3><input id='prodNombre' placeholder='Nombre del producto'><br><input id='prodPrecio' type='number' placeholder='Precio'><br><select id='prodCategoria'>";
       categorias.forEach(c=>{ html+=`<option value="${c}">${c}</option>`; });
       html+="</select><br><br><button onclick='guardarNuevoProducto()'>✅ Guardar</button> <button onclick='config()' style='background:#444'>Cancelar</button>";
       document.getElementById("app").innerHTML=html;
     }
     function guardarNuevoProducto(){
       let n=document.getElementById("prodNombre").value, pr=document.getElementById("prodPrecio").value, c=document.getElementById("prodCategoria")?.value;
-      if(n && pr && c){ menu.push({nombre:n,precio:parseFloat(pr),categoria:c}); guardar(); config(); }
+      if(n && pr && c){ menu.push({nombre:n,precio:parseFloat(pr),categoria:c}); guardar(); config(); } else { alert("Faltan datos"); }
     }
 
     function exportarMenu() {
@@ -366,18 +367,18 @@
         reader.onload = ev => {
           try {
             const content = JSON.parse(ev.target.result);
-            if (content.menu) { menu = content.menu; categorias = content.categorias; guardar(); config(); alert("✅ Listo"); }
-          } catch(err) { alert("Error"); }
+            if (content.menu) { menu = content.menu; categorias = content.categorias; guardar(); config(); alert("✅ Importado con éxito"); }
+          } catch(err) { alert("Archivo no válido"); }
         };
         reader.readAsText(e.target.files[0]);
       };
       input.click();
     }
 
-    function reiniciarCaja(){ if(confirm("¿Limpiar historial?")){ ventasDia = 0; historialVentas = []; guardar(); config(); } }
+    function reiniciarCaja(){ if(confirm("¿Deseas resetear el historial de ventas y caja?")){ ventasDia = 0; historialVentas = []; guardar(); config(); } }
     function verHistorial() {
       let html="<h3>Historial de Hoy</h3>";
-      if(historialVentas.length === 0) html += "<p>Sin ventas.</p>";
+      if(historialVentas.length === 0) html += "<p>No hay ventas registradas hoy.</p>";
       historialVentas.slice().reverse().forEach(v => {
         html += `<div class='card' style='text-align:left; margin-bottom:10px'>
           <small>${v.hora}</small> | <b>Mesa ${v.mesa}</b><br>
@@ -391,13 +392,11 @@
 
     chequearAcceso();
     
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
-        .then(reg => console.log('Modo Offline Activado', reg))
-        .catch(err => console.log('Error al activar offline', err));
-    });
-  }
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => console.log(err));
+      });
+    }
   </script> 
 </body> 
 </html>
