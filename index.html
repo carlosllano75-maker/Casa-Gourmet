@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="logo-casa-gourmet.jpg">
   <link rel="manifest" href="manifest.json">
  
-  <script src="html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
  
   <style> 
     body{font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0b0b0b;color:#fff;margin:0;padding-bottom:50px;user-select:none;} 
@@ -33,22 +33,12 @@
     .item-pedido{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px dashed #333;padding-bottom:5px}
     .backup-box{background:#222; padding:15px; border-radius:15px; margin:15px auto; max-width:400px; border:1px dashed #444}
     
-    #ticket-wrapper { 
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-      background: rgba(0,0,0,0.9); z-index: 10000; display: none;
-      justify-content: center; align-items: center;
-    }
-    .ticket-termico {
-      width: 300px; background: white; color: black; padding: 20px;
-      font-family: 'Courier New', Courier, monospace; text-align: center;
-    }
+    /* Estilos Ticket */
+    #ticket-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; display: none; justify-content: center; align-items: center; }
+    .ticket-termico { width: 300px; background: white; color: black; padding: 20px; font-family: 'Courier New', Courier, monospace; text-align: center; }
     .sep { border-top: 1px dashed #000; margin: 10px 0; }
  
-    #bloqueo {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: #0b0b0b; z-index: 9999; display: flex;
-      flex-direction: column; align-items: center; justify-content: center;
-    }
+    #bloqueo { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0b0b0b; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
   </style> 
 </head> 
 <body> 
@@ -63,16 +53,6 @@
       <div class="sep"></div>
       <b id="t-total" style="font-size:22px"></b><br><br>
       <small>¡Gracias por su compra!</small>
-    </div>
-    <div id="ticket-reporte" class="ticket-termico" style="display:none">
-      <img src="logo-casa-gourmet.jpg" style="width: 120px;"><br>
-      <b>REPORTE DE CIERRE</b><br>
-      <small id="r-fecha"></small>
-      <div class="sep"></div>
-      <div id="r-items" style="text-align:left; font-size:12px"></div>
-      <div class="sep"></div>
-      <b id="r-total" style="font-size:20px"></b><br>
-      <small id="r-cantidad"></small>
     </div>
   </div>
  
@@ -152,146 +132,47 @@
         <br><button onclick="reiniciarCaja()" style="background:#222; color:#ff4444; font-size:11px; margin-top:10px">Limpiar Todo</button>
       </div>`;
       html+="<button onclick='verHistorial()'>🕒 Ver Historial</button>";
-      html+="<br><button onclick='gestionarProductos()' style='background:#3498db; color:white'>✏️ Gestionar Productos</button>";
       html+="<br><button onclick='nuevoProducto()'>+ Nuevo Producto</button>";
       html+=" <button onclick='configCategorias()'>📂 Categorías</button>";
       html+=" <button onclick='configMesas()'>🍽️ Editar Mesas</button>";
       html += `<div class="backup-box"><button onclick="exportarMenu()">📤 Exportar</button> <button onclick="importarMenu()">📥 Importar</button></div>`;
+      
+      // --- SECCIÓN PARA EDITAR PRODUCTOS EXISTENTES ---
+      html+="<hr style='border:1px solid #333; margin:20px'><h3>📦 Gestionar Productos</h3>";
+      if(menu.length === 0) html+="<p>No hay productos guardados.</p>";
+      menu.forEach((p, index) => {
+        html += `<div class='card' style='margin:10px auto; max-width:400px; display:flex; justify-content:space-between; align-items:center'>
+          <div style='text-align:left'><b>${p.nombre}</b><br><small>$${p.precio} (${p.categoria})</small></div>
+          <div>
+            <button class='btn-edit' onclick='editarProducto(${index})'>✏️</button>
+            <button class='btn-danger' onclick='eliminarProducto(${index})'>🗑️</button>
+          </div>
+        </div>`;
+      });
+
       document.getElementById("app").innerHTML=html; 
     }
 
-    // --- NUEVAS FUNCIONES PARA GESTIÓN DE PRODUCTOS ---
-    function gestionarProductos() {
-        let html="<h3>Gestionar Productos</h3>";
-        if(menu.length === 0) {
-            html += "<p>No hay productos registrados.</p>";
-        } else {
-            menu.forEach((p, i) => {
-                html += `<div class='card' style='margin:10px auto; max-width:400px; display:flex; justify-content:space-between; align-items:center'>
-                    <div style='text-align:left'><b>${p.nombre}</b><br><small>${p.categoria} - $${p.precio}</small></div>
-                    <div>
-                        <button class='btn-edit' onclick='editarProducto(${i})'>✏️</button>
-                        <button class='btn-danger' onclick='eliminarProducto(${i})'>🗑️</button>
-                    </div>
-                </div>`;
-            });
-        }
-        html += "<br><button onclick='config()'>⬅️ Volver</button>";
-        document.getElementById("app").innerHTML = html;
-    }
-
-    function editarProducto(i) {
-        let p = menu[i];
-        let html=`<h3>Editar Producto</h3>
-        <input id='editNombre' value="${p.nombre}" placeholder="Nombre"><br>
-        <input id='editPrecio' type='number' value="${p.precio}" placeholder="Precio"><br>
-        <select id='editCategoria'>`;
-        categorias.forEach(c => { html += `<option value="${c}" ${c===p.categoria?'selected':''}>${c}</option>`; });
-        html += `</select><br><br><button onclick='guardarModificacion(${i})'>✅ Guardar Cambios</button> 
-        <button onclick='gestionarProductos()' style="background:#444">Cancelar</button>`;
-        document.getElementById("app").innerHTML=html;
-    }
-
-    function guardarModificacion(i) {
-        let n=document.getElementById("editNombre").value, pr=document.getElementById("editPrecio").value, c=document.getElementById("editCategoria").value;
-        if(n && pr && c) {
-            menu[i] = {nombre:n, precio:parseFloat(pr), categoria:c};
+    // Funciones de edición y borrado
+    function eliminarProducto(index) {
+        if(confirm("¿Seguro que quieres eliminar " + menu[index].nombre + "?")) {
+            menu.splice(index, 1);
             guardar();
-            gestionarProductos();
-        } else { alert("Completa todos los campos"); }
+            config(); // Recargar la vista
+        }
     }
 
-    function eliminarProducto(i) {
-        if(confirm("¿Eliminar este producto permanentemente?")) {
-            menu.splice(i,1);
+    function editarProducto(index) {
+        let p = menu[index];
+        let nuevoNombre = prompt("Nuevo nombre del producto:", p.nombre);
+        let nuevoPrecio = prompt("Nuevo precio:", p.precio);
+        
+        if(nuevoNombre && nuevoPrecio) {
+            menu[index].nombre = nuevoNombre;
+            menu[index].precio = parseFloat(nuevoPrecio);
             guardar();
-            gestionarProductos();
+            config();
         }
-    }
-    // --- FIN NUEVAS FUNCIONES ---
- 
-    function pagarMesa(m){
-      if(!pedidos[m] || pedidos[m].length === 0) return;
-      if(confirm("¿Cobrar e imprimir ticket?")){
-        let totalMesa = 0;
-        let itemsHTML = "";
-        let textoDetalles = "";
-        pedidos[m].forEach(p => {
-          totalMesa += p.precio;
-          itemsHTML += `<div style="display:flex; justify-content:space-between"><span>${p.nombre}</span><span>$${p.precio}</span></div>`;
-          textoDetalles += p.nombre + ", ";
-        });
- 
-        historialVentas.push({
-          hora: new Date().toLocaleTimeString(),
-          mesa: m,
-          total: totalMesa,
-          detalles: textoDetalles.slice(0, -2)
-        });
- 
-        document.getElementById("t-fecha").innerText = new Date().toLocaleString();
-        document.getElementById("t-items").innerHTML = itemsHTML;
-        document.getElementById("t-total").innerText = "TOTAL: $" + totalMesa;
- 
-        const wrapper = document.getElementById("ticket-wrapper");
-        document.getElementById("ticket-visual").style.display = "block";
-        document.getElementById("ticket-reporte").style.display = "none";
-        wrapper.style.display = "flex";
- 
-        if (typeof html2canvas !== 'undefined') {
-          setTimeout(() => {
-            html2canvas(document.getElementById("ticket-visual"), { scale: 2 }).then(canvas => {
-                let link = document.createElement('a');
-                link.download = 'Ticket-' + m + '.png';
-                link.href = canvas.toDataURL("image/png");
-                link.click();
-                wrapper.style.display = "none";
-                cerrarMesa(m, totalMesa);
-            }).catch(() => { wrapper.style.display = "none"; cerrarMesa(m, totalMesa); });
-          }, 500);
-        } else {
-          alert("Librería de impresión no encontrada. Cobrando sin ticket...");
-          wrapper.style.display = "none";
-          cerrarMesa(m, totalMesa);
-        }
-      }
-    }
- 
-    function imprimirReporte() {
-      if(historialVentas.length === 0) return alert("Sin ventas hoy.");
-      let itemsHTML = "";
-      historialVentas.forEach(v => {
-        itemsHTML += `<div style="font-size:11px; border-bottom:1px solid #ddd; padding:5px 0">
-          <b>${v.hora} - Mesa ${v.mesa}</b><br>${v.detalles}<br><b>$${v.total}</b>
-        </div>`;
-      });
- 
-      document.getElementById("r-fecha").innerText = new Date().toLocaleString();
-      document.getElementById("r-items").innerHTML = itemsHTML;
-      document.getElementById("r-total").innerText = "TOTAL DÍA: $" + ventasDia;
-      document.getElementById("r-cantidad").innerText = "Ventas: " + historialVentas.length;
- 
-      const wrapper = document.getElementById("ticket-wrapper");
-      document.getElementById("ticket-visual").style.display = "none";
-      document.getElementById("ticket-reporte").style.display = "block";
-      wrapper.style.display = "flex";
- 
-      setTimeout(() => {
-        html2canvas(document.getElementById("ticket-reporte"), {scale: 2}).then(canvas => {
-          let link = document.createElement('a');
-          link.download = 'CIERRE-' + new Date().toLocaleDateString() + '.png';
-          link.href = canvas.toDataURL("image/png");
-          link.click();
-          wrapper.style.display = "none";
-        });
-      }, 500);
-    }
- 
-    function cerrarMesa(m, total){
-        ventasDia += total;
-        delete pedidos[m];
-        guardar();
-        verMesas();
     }
  
     function abrirMesa(m){ 
@@ -315,6 +196,7 @@
       }); 
       return html + "</div>"; 
     } 
+
     function agregar(m,n,pr){ if(!pedidos[m]) pedidos[m]=[]; pedidos[m].push({nombre:n,precio:pr}); guardar(); abrirMesa(m); }
     function mostrarLista(m){ 
       let html="<div class='lista'><b>📝 Pedido:</b><br>"; let total=0; 
@@ -323,15 +205,42 @@
     }
     function eliminarItem(m,i){ pedidos[m].splice(i,1); guardar(); abrirMesa(m); }
  
-    function enviarWhatsApp(m) {
-      if (!pedidos[m]) return;
-      let texto = "*CASA GOURMET*\n*Mesa " + m + "*\n\n";
-      let total = 0;
-      pedidos[m].forEach(p => { texto += "- " + p.nombre + ": $" + p.precio + "\n"; total += p.precio; });
-      texto += "\n*TOTAL: $" + total + "*";
-      window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(texto), '_blank');
-    }
+    function pagarMesa(m){
+      if(!pedidos[m] || pedidos[m].length === 0) return;
+      if(confirm("¿Cobrar e imprimir ticket?")){
+        let totalMesa = 0;
+        let itemsHTML = "";
+        let textoDetalles = "";
+        pedidos[m].forEach(p => {
+          totalMesa += p.precio;
+          itemsHTML += `<div style="display:flex; justify-content:space-between"><span>${p.nombre}</span><span>$${p.precio}</span></div>`;
+          textoDetalles += p.nombre + ", ";
+        });
  
+        historialVentas.push({ hora: new Date().toLocaleTimeString(), mesa: m, total: totalMesa, detalles: textoDetalles.slice(0, -2) });
+ 
+        document.getElementById("t-fecha").innerText = new Date().toLocaleString();
+        document.getElementById("t-items").innerHTML = itemsHTML;
+        document.getElementById("t-total").innerText = "TOTAL: $" + totalMesa;
+ 
+        const wrapper = document.getElementById("ticket-wrapper");
+        wrapper.style.display = "flex";
+ 
+        html2canvas(document.getElementById("ticket-visual"), { scale: 2 }).then(canvas => {
+            let link = document.createElement('a');
+            link.download = 'Ticket-' + m + '.png';
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+            wrapper.style.display = "none";
+            ventasDia += totalMesa;
+            delete pedidos[m];
+            guardar();
+            verMesas();
+        });
+      }
+    }
+
+    // Funciones estándar
     function configCategorias(){
       let html="<h3>Categorías</h3><button onclick='nuevaCategoria()'>+ Nueva</button>";
       categorias.forEach((c,i)=>{ html+=`<div class='card'>${c} <button class='btn-danger' onclick='eliminarCategoria(${i})'>🗑️</button></div>`; });
@@ -351,7 +260,7 @@
     function agregarNuevaMesa() { let n = prompt("Nombre:"); if(n && !listaMesas.includes(n)) { listaMesas.push(n); guardar(); verMesas(); } }
  
     function nuevoProducto(){ 
-      let html="<h3>Producto</h3><input id='prodNombre' placeholder='Nombre'><br><input id='prodPrecio' type='number' placeholder='Precio'><br><select id='prodCategoria'>";
+      let html="<h3>Nuevo Producto</h3><input id='prodNombre' placeholder='Nombre'><br><input id='prodPrecio' type='number' placeholder='Precio'><br><select id='prodCategoria'>";
       categorias.forEach(c=>{ html+=`<option value="${c}">${c}</option>`; });
       html+="</select><br><br><button onclick='guardarNuevoProducto()'>✅ Guardar</button> <button onclick='config()' style='background:#444'>Cancelar</button>";
       document.getElementById("app").innerHTML=html;
@@ -361,41 +270,12 @@
       if(n && pr && c){ menu.push({nombre:n,precio:parseFloat(pr),categoria:c}); guardar(); config(); }
     }
  
-    function exportarMenu() {
-      const data = JSON.stringify({ menu, categorias });
-      const blob = new Blob([data], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'menu_casa_gourmet.json';
-      a.click();
-    }
- 
-    function importarMenu() {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.json';
-      input.onchange = e => {
-        const reader = new FileReader();
-        reader.onload = ev => {
-          try {
-            const content = JSON.parse(ev.target.result);
-            if (content.menu) { menu = content.menu; categorias = content.categorias; guardar(); config(); alert("✅ Listo"); }
-          } catch(err) { alert("Error"); }
-        };
-        reader.readAsText(e.target.files[0]);
-      };
-      input.click();
-    }
- 
     function reiniciarCaja(){ if(confirm("¿Limpiar historial?")){ ventasDia = 0; historialVentas = []; guardar(); config(); } }
     function verHistorial() {
       let html="<h3>Historial de Hoy</h3>";
-      if(historialVentas.length === 0) html += "<p>Sin ventas.</p>";
       historialVentas.slice().reverse().forEach(v => {
         html += `<div class='card' style='text-align:left; margin-bottom:10px'>
-          <small>${v.hora}</small> | <b>Mesa ${v.mesa}</b><br>
-          <small>${v.detalles}</small><br>
-          <b style='color:#0f0'>$${v.total}</b>
+          <small>${v.hora}</small> | <b>Mesa ${v.mesa}</b><br><small>${v.detalles}</small><br><b style='color:#0f0'>$${v.total}</b>
         </div>`;
       });
       html += "<br><button onclick='config()'>Volver</button>";
@@ -403,14 +283,6 @@
     }
  
     chequearAcceso();
-    
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
-        .then(reg => console.log('Modo Offline Activado', reg))
-        .catch(err => console.log('Error al activar offline', err));
-    });
-  }
   </script> 
 </body> 
 </html>
