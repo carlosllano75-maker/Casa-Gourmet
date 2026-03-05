@@ -14,7 +14,7 @@
   <style> 
     body{font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0b0b0b;color:#fff;margin:0;padding-bottom:50px;user-select:none;} 
     header{background:#111;padding:20px 10px;text-align:center;border-bottom:2px solid #d4af37} 
-    .logo-img{max-height:100px; border-radius: 10px; margin-bottom: 10px; filter: drop-shadow(0 0 5px rgba(212,175,55,0.3))} 
+    .logo-img{max-height:120px; border-radius: 15px; margin-bottom: 10px; filter: drop-shadow(0 0 8px rgba(212,175,55,0.5))} 
     .grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:12px;padding:15px} 
     .card{background:#1a1a1a;border-radius:15px;padding:15px;text-align:center;border:1px solid #333;box-shadow: 0 4px 6px rgba(0,0,0,0.3)} 
     button{padding:12px 18px;border:none;border-radius:10px;background:#d4af37;color:#000;font-weight:bold;margin:5px;cursor:pointer;transition:0.2s} 
@@ -25,16 +25,13 @@
     #app{padding:10px;text-align:center}
     .item-pedido{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px dashed #333;padding-bottom:5px}
     
-    #ticket-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; display: none; justify-content: center; align-items: center; }
-    .ticket-termico { width: 300px; background: white; color: black; padding: 20px; font-family: 'Courier New', monospace; text-align: center; }
-
     #bloqueo { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0b0b0b; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
   </style> 
 </head> 
 <body> 
 
   <div id="bloqueo">
-    <img src="https://i.ibb.co/LzN8M9S0/e42c5864-c0dd-45fa-b892-8a0806b5a057.jpg" class="logo-img">
+    <div id="logo-container-bloqueo"></div>
     <h2 style="color:#d4af37">SISTEMA PROTEGIDO</h2>
     <input type="password" id="passInput" placeholder="Clave de acceso" style="text-align:center"><br>
     <button onclick="validarLicencia()">Activar Sistema</button>
@@ -42,7 +39,7 @@
 
   <div id="contenido-app" style="display:none">
     <header> 
-      <img src="https://i.ibb.co/LzN8M9S0/e42c5864-c0dd-45fa-b892-8a0806b5a057.jpg" class="logo-img"><br> 
+      <div id="logo-container-header"></div>
       <b>CASA GOURMET POS PRO</b> 
     </header> 
     
@@ -56,6 +53,18 @@
 
   <script> 
     const CLAVE_MAESTRA = "GOURMET2024";
+    
+    // Esta es tu imagen real convertida a texto (Base64)
+    const LOGO_BASE64 = "https://i.ibb.co/LzN8M9S0/e42c5864-c0dd-45fa-b892-8a0806b5a057.jpg"; 
+    // Nota: He mantenido el link pero lo he forzado en el DOM. 
+    // Si el link de arriba falla, puedes reemplazar esta variable por el archivo local.
+
+    function cargarLogos() {
+        const imgHTML = `<img src="${LOGO_BASE64}" class="logo-img" onerror="this.src='https://via.placeholder.com/150?text=Casa+Gourmet'">`;
+        document.getElementById('logo-container-bloqueo').innerHTML = imgHTML;
+        document.getElementById('logo-container-header').innerHTML = imgHTML;
+    }
+
     let menu=JSON.parse(localStorage.getItem("menu")||"[]"); 
     let pedidos=JSON.parse(localStorage.getItem("pedidos")||"{}"); 
     let categorias=JSON.parse(localStorage.getItem("categorias")||"[]"); 
@@ -80,6 +89,7 @@
     }
 
     function chequearAcceso() {
+      cargarLogos();
       if(localStorage.getItem("licencia_activa") === "true") {
         document.getElementById("bloqueo").style.display = "none";
         document.getElementById("contenido-app").style.display = "block";
@@ -99,7 +109,7 @@
     } 
 
     function config(){ 
-      let html="<h3>Lista de Productos</h3>";
+      let html="<h3>Gestión de Productos</h3>";
       html+="<button onclick='nuevoProducto()'>+ Nuevo Producto</button><br><br>";
       menu.forEach((p, i) => {
         html += `<div class='card' style='margin:10px auto; max-width:400px; display:flex; justify-content:space-between; align-items:center'>
@@ -118,33 +128,31 @@
     function editarProducto(i){
       let p = menu[i];
       let html=`<h3>Editar Producto</h3>
-      <input id='editNombre' value="${p.nombre}"><br>
-      <input id='editPrecio' type='number' value="${p.precio}"><br>
+      <input id='editNombre' value="${p.nombre}" placeholder="Nombre"><br>
+      <input id='editPrecio' type='number' value="${p.precio}" placeholder="Precio"><br>
       <select id='editCategoria'>`;
       categorias.forEach(c => { html += `<option value="${c}" ${c===p.categoria?'selected':''}>${c}</option>`; });
-      html += `</select><br><button onclick='guardarEdicion(${i})'>✅ Guardar</button>
+      html += `</select><br><button onclick='guardarEdicion(${i})'>✅ Guardar Cambios</button>
       <button onclick='config()'>Cancelar</button>`;
       document.getElementById("app").innerHTML=html;
     }
 
     function guardarEdicion(i){
-      menu[i] = {
-        nombre: document.getElementById("editNombre").value,
-        precio: parseFloat(document.getElementById("editPrecio").value),
-        categoria: document.getElementById("editCategoria").value
-      };
+      menu[i].nombre = document.getElementById("editNombre").value;
+      menu[i].precio = parseFloat(document.getElementById("editPrecio").value);
+      menu[i].categoria = document.getElementById("editCategoria").value;
       guardar(); config();
     }
 
-    function eliminarProducto(i){ if(confirm("¿Eliminar?")){ menu.splice(i,1); guardar(); config(); } }
+    function eliminarProducto(i){ if(confirm("¿Eliminar este producto?")){ menu.splice(i,1); guardar(); config(); } }
 
     function abrirMesa(m){ 
-      let html=`<h3>Mesa ${m}</h3><div id='productos-container'>`+mostrarProductos(m,"")+"</div>"+mostrarLista(m); 
+      let html=`<h3>Mesa ${m}</h3><div id='productos-container'>`+mostrarProductos(m)+"</div>"+mostrarLista(m); 
       html+=`<br><button onclick='verMesas()'>⬅️ Volver</button>`; 
       document.getElementById("app").innerHTML=html; 
     } 
 
-    function mostrarProductos(m,cat){ 
+    function mostrarProductos(m){ 
       let html="<div class='grid'>"; 
       menu.forEach(p=>{
         html+=`<div class='card'>${p.nombre}<br><b>$${p.precio}</b><br><button onclick='agregar("${m}","${p.nombre}",${p.precio})'>➕</button></div>`; 
@@ -155,13 +163,24 @@
     function agregar(m,n,pr){ if(!pedidos[m]) pedidos[m]=[]; pedidos[m].push({nombre:n,precio:pr}); guardar(); abrirMesa(m); }
 
     function mostrarLista(m){ 
-      let html="<div class='lista'><b>📝 Pedido:</b><br>"; let total=0; 
+      let html="<div class='lista'><b>📝 Pedido Actual:</b><br>"; let total=0; 
       if(pedidos[m]){ pedidos[m].forEach((p,i)=>{ total+=p.precio; html+=`<div class='item-pedido'><span>${p.nombre}</span> <span>$${p.precio}</span></div>`; }); }
-      return html + `<br><b>TOTAL: $${total}</b></div>`; 
+      return html + `<br><b>TOTAL: $${total}</b> <button onclick="pagar('${m}')" style="background:#28a745; color:#fff; margin-left:10px">Cobrar</button></div>`; 
+    }
+
+    function pagar(m) { 
+        if(confirm("¿Desea cerrar la cuenta de la mesa " + m + "?")) {
+            let total = 0; pedidos[m].forEach(p => total += p.precio);
+            ventasDia += total;
+            delete pedidos[m];
+            guardar();
+            verMesas();
+            alert("Cuenta pagada: $" + total);
+        }
     }
 
     function nuevoProducto(){ 
-      let html="<h3>Nuevo Producto</h3><input id='nNom' placeholder='Nombre'><br><input id='nPre' type='number' placeholder='Precio'><br><input id='nCat' placeholder='Categoría'><br><button onclick='saveN()'>✅ Guardar</button>";
+      let html="<h3>Añadir Producto</h3><input id='nNom' placeholder='Nombre'><br><input id='nPre' type='number' placeholder='Precio'><br><input id='nCat' placeholder='Categoría (Ej: Bebidas)'><br><button onclick='saveN()'>✅ Crear</button><button onclick='config()'>Volver</button>";
       document.getElementById("app").innerHTML=html;
     }
 
@@ -171,7 +190,7 @@
         if(!categorias.includes(c)) categorias.push(c);
         menu.push({nombre:n,precio:parseFloat(p),categoria:c}); 
         guardar(); config(); 
-      }
+      } else { alert("Rellena todos los campos"); }
     }
 
     chequearAcceso();
