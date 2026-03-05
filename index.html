@@ -152,59 +152,63 @@
         <br><button onclick="reiniciarCaja()" style="background:#222; color:#ff4444; font-size:11px; margin-top:10px">Limpiar Todo</button>
       </div>`;
       html+="<button onclick='verHistorial()'>🕒 Ver Historial</button>";
+      html+="<br><button onclick='gestionarProductos()' style='background:#3498db; color:white'>✏️ Gestionar Productos</button>";
       html+="<br><button onclick='nuevoProducto()'>+ Nuevo Producto</button>";
       html+=" <button onclick='configCategorias()'>📂 Categorías</button>";
       html+=" <button onclick='configMesas()'>🍽️ Editar Mesas</button>";
       html += `<div class="backup-box"><button onclick="exportarMenu()">📤 Exportar</button> <button onclick="importarMenu()">📥 Importar</button></div>`;
-      
-      // NUEVA SECCIÓN: LISTA DE PRODUCTOS CON BOTONES DE EDITAR
-      html+="<h3>Productos Registrados</h3>";
-      if(menu.length === 0) {
-        html += "<p>No hay productos en el menú.</p>";
-      } else {
-        menu.forEach((p, i) => {
-          html += `<div class='card' style='margin:10px auto; max-width:400px; display:flex; justify-content:space-between; align-items:center'>
-            <div style='text-align:left'><b>${p.nombre}</b><br><small>${p.categoria}</small></div>
-            <div>
-              <b>$${p.precio}</b><br>
-              <button class='btn-edit' onclick='editarProducto(${i})'>✏️</button>
-              <button class='btn-danger' onclick='eliminarProducto(${i})'>🗑️</button>
-            </div>
-          </div>`;
-        });
-      }
-
       document.getElementById("app").innerHTML=html; 
     }
 
-    // FUNCIÓN PARA EDITAR PRODUCTO
-    function editarProducto(i){
-      let p = menu[i];
-      let html=`<h3>Editar Producto</h3>
-      <input id='editNombre' value="${p.nombre}" placeholder="Nombre"><br>
-      <input id='editPrecio' type='number' value="${p.precio}" placeholder="Precio"><br>
-      <select id='editCategoria'>`;
-      categorias.forEach(c => { html += `<option value="${c}" ${c===p.categoria?'selected':''}>${c}</option>`; });
-      html += `</select><br><br><button onclick='guardarModificacion(${i})'>✅ Guardar Cambios</button> 
-      <button onclick='config()' style="background:#444">Cancelar</button>`;
-      document.getElementById("app").innerHTML=html;
+    // --- NUEVAS FUNCIONES PARA GESTIÓN DE PRODUCTOS ---
+    function gestionarProductos() {
+        let html="<h3>Gestionar Productos</h3>";
+        if(menu.length === 0) {
+            html += "<p>No hay productos registrados.</p>";
+        } else {
+            menu.forEach((p, i) => {
+                html += `<div class='card' style='margin:10px auto; max-width:400px; display:flex; justify-content:space-between; align-items:center'>
+                    <div style='text-align:left'><b>${p.nombre}</b><br><small>${p.categoria} - $${p.precio}</small></div>
+                    <div>
+                        <button class='btn-edit' onclick='editarProducto(${i})'>✏️</button>
+                        <button class='btn-danger' onclick='eliminarProducto(${i})'>🗑️</button>
+                    </div>
+                </div>`;
+            });
+        }
+        html += "<br><button onclick='config()'>⬅️ Volver</button>";
+        document.getElementById("app").innerHTML = html;
     }
 
-    function guardarModificacion(i){
-      let n=document.getElementById("editNombre").value, pr=document.getElementById("editPrecio").value, c=document.getElementById("editCategoria").value;
-      if(n && pr && c){
-        menu[i] = {nombre:n, precio:parseFloat(pr), categoria:c};
-        guardar(); config();
-      } else { alert("Por favor complete todos los campos"); }
+    function editarProducto(i) {
+        let p = menu[i];
+        let html=`<h3>Editar Producto</h3>
+        <input id='editNombre' value="${p.nombre}" placeholder="Nombre"><br>
+        <input id='editPrecio' type='number' value="${p.precio}" placeholder="Precio"><br>
+        <select id='editCategoria'>`;
+        categorias.forEach(c => { html += `<option value="${c}" ${c===p.categoria?'selected':''}>${c}</option>`; });
+        html += `</select><br><br><button onclick='guardarModificacion(${i})'>✅ Guardar Cambios</button> 
+        <button onclick='gestionarProductos()' style="background:#444">Cancelar</button>`;
+        document.getElementById("app").innerHTML=html;
     }
 
-    function eliminarProducto(i){
-      if(confirm("¿Eliminar este producto permanentemente?")){
-        menu.splice(i,1);
-        guardar();
-        config();
-      }
+    function guardarModificacion(i) {
+        let n=document.getElementById("editNombre").value, pr=document.getElementById("editPrecio").value, c=document.getElementById("editCategoria").value;
+        if(n && pr && c) {
+            menu[i] = {nombre:n, precio:parseFloat(pr), categoria:c};
+            guardar();
+            gestionarProductos();
+        } else { alert("Completa todos los campos"); }
     }
+
+    function eliminarProducto(i) {
+        if(confirm("¿Eliminar este producto permanentemente?")) {
+            menu.splice(i,1);
+            guardar();
+            gestionarProductos();
+        }
+    }
+    // --- FIN NUEVAS FUNCIONES ---
  
     function pagarMesa(m){
       if(!pedidos[m] || pedidos[m].length === 0) return;
