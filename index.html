@@ -46,6 +46,7 @@
     <div id="ticket-visual" class="ticket-termico">
       <img src="logo-casa-gourmet.jpg" style="width: 220px; margin-bottom: 15px;"><br>
       <b style="font-size: 24px;">CASA GOURMET</b><br>
+      <b id="t-mesa" style="font-size:26px;"></b><br>
       <span id="t-fecha" style="font-size:18px; font-weight:bold;"></span><br>
       <div class="sep"></div>
       <div id="t-items" style="text-align:left; font-size:20px; font-weight:bold;"></div>
@@ -243,6 +244,7 @@
         historialVentas.push({ hora: new Date().toLocaleTimeString(), mesa: m, total: totalMesa, detalles: textoDetalles.slice(0, -2) });
         
         document.getElementById("t-fecha").innerText = new Date().toLocaleString();
+        document.getElementById("t-mesa").innerText="MESA: "+m;
         document.getElementById("t-items").innerHTML = itemsHTML;
         document.getElementById("t-total").innerText = "TOTAL: $" + totalMesa;
         
