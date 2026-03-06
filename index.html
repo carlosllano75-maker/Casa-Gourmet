@@ -34,7 +34,7 @@
     .backup-box{background:#222; padding:15px; border-radius:15px; margin:15px auto; max-width:400px; border:1px dashed #444}
     
     #ticket-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; display: none; justify-content: center; align-items: center; }
-    .ticket-termico { width: 300px; background: white; color: black; padding: 20px; font-family: 'Courier New', Courier, monospace; text-align: center; }
+    .ticket-termico { width: 240px; background: white; color: black; padding: 20px; font-family: 'Courier New', Courier, monospace; text-align: center; }
     .sep { border-top: 1px dashed #000; margin: 10px 0; }
  
     #bloqueo { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0b0b0b; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -45,22 +45,22 @@
   <div id="ticket-wrapper">
     <div id="ticket-visual" class="ticket-termico">
       <img src="logo-casa-gourmet.jpg" style="width: 180px; margin-bottom: 10px;"><br>
-      <b style="font-size: 18px;">CASA GOURMET</b><br>
-      <small id="t-fecha"></small><br>
+      <b style="font-size: 24px;">CASA GOURMET</b><br>
+      <small id="t-fecha" style="font-size:14px;"></small><br>
       <div class="sep"></div>
-      <div id="t-items" style="text-align:left; font-size:14px"></div>
+      <div id="t-items" style="text-align:left; font-size:20px"></div>
       <div class="sep"></div>
-      <b id="t-total" style="font-size:22px"></b><br><br>
+      <b id="t-total" style="font-size:30px"></b><br><br>
       <small>¡Gracias por su compra!</small>
     </div>
     <div id="ticket-reporte" class="ticket-termico" style="display:none">
       <img src="logo-casa-gourmet.jpg" style="width: 120px;"><br>
-      <b>REPORTE DE CIERRE</b><br>
+      <b style="font-size:20px;">REPORTE DE CIERRE</b><br>
       <small id="r-fecha"></small>
       <div class="sep"></div>
-      <div id="r-items" style="text-align:left; font-size:12px"></div>
+      <div id="r-items" style="text-align:left; font-size:16px"></div>
       <div class="sep"></div>
-      <b id="r-total" style="font-size:20px"></b><br>
+      <b id="r-total" style="font-size:26px"></b><br>
       <small id="r-cantidad"></small>
     </div>
   </div>
@@ -272,7 +272,7 @@
       if(historialVentas.length === 0) return alert("Sin ventas.");
       let itemsHTML = "";
       historialVentas.forEach(v => {
-        itemsHTML += `<div style="font-size:11px; border-bottom:1px solid #ddd; padding:5px 0">
+        itemsHTML += `<div style="font-size:16px; border-bottom:1px solid #ddd; padding:5px 0">
           <b>${v.hora} - Mesa ${v.mesa}</b><br>${v.detalles}<br><b>$${v.total}</b>
         </div>`;
       });
