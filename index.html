@@ -125,7 +125,8 @@
       let html="<div style='margin-bottom:10px'><button onclick='agregarNuevaMesa()' style='background:#28a745; color:white; width:90%'>+ Nueva Mesa / Barra</button></div>";
       html+="<div class='grid'>"; 
       listaMesas.forEach(i => { 
-        let total=0; if(pedidos[i]) pedidos[i].forEach(p=>total+=p.precio); 
+        let total=0; 
+        if(pedidos[i]) pedidos[i].forEach(p => total += (p.precio * (p.cantidad || 1))); 
         let colorMesa = total > 0 ? "border:1px solid #d4af37; background:#252115" : "";
         html+=`<div class='card' style='${colorMesa}'><b>Mesa ${i}</b><br><span style='color:${total>0?"#0f0":"#666"}'>$${total}</span> 
         <br><button onclick='abrirMesa("${i}")'>${total>0?"Editar":"Abrir"}</button></div>`; 
@@ -224,22 +225,44 @@
       }); 
       return html + "</div>"; 
     } 
-    function agregar(m,n,pr){ if(!pedidos[m]) pedidos[m]=[]; pedidos[m].push({nombre:n,precio:pr}); guardar(); abrirMesa(m); }
+
+    function agregar(m,n,pr){ 
+      if(!pedidos[m]) pedidos[m]=[]; 
+      let existente = pedidos[m].find(p => p.nombre === n);
+      if(existente){ existente.cantidad++; } 
+      else { pedidos[m].push({nombre:n, precio:pr, cantidad:1}); }
+      guardar(); abrirMesa(m); 
+    }
+
     function mostrarLista(m){ 
       let html="<div class='lista'><b>📝 Pedido:</b><br>"; let total=0; 
-      if(pedidos[m]){ pedidos[m].forEach((p,i)=>{ total+=p.precio; html+=`<div class='item-pedido'><span>${p.nombre}</span> <span>$${p.precio} <button class='btn-danger' onclick='eliminarItem("${m}",${i})'>x</button></span></div>`; }); }
+      if(pedidos[m]){ 
+        pedidos[m].forEach((p,i)=>{ 
+          let cant = p.cantidad || 1;
+          let subtotal = p.precio * cant;
+          total += subtotal; 
+          html+=`<div class='item-pedido'><span>${cant}x ${p.nombre}</span> <span>$${subtotal} <button class='btn-danger' onclick='eliminarItem("${m}",${i})'>x</button></span></div>`; 
+        }); 
+      } 
       return html + `<br><b>TOTAL: $${total}</b></div>`; 
     }
-    function eliminarItem(m,i){ pedidos[m].splice(i,1); guardar(); abrirMesa(m); }
+
+    function eliminarItem(m,i){ 
+      if(pedidos[m][i].cantidad > 1){ pedidos[m][i].cantidad--; }
+      else { pedidos[m].splice(i,1); }
+      guardar(); abrirMesa(m); 
+    }
 
     function pagarMesa(m){
       if(!pedidos[m] || pedidos[m].length === 0) return;
       if(confirm("¿Cobrar e imprimir ticket?")){
         let totalMesa = 0, itemsHTML = "", textoDetalles = "";
         pedidos[m].forEach(p => {
-          totalMesa += p.precio;
-          itemsHTML += `<div style="display:flex; justify-content:space-between"><span>${p.nombre}</span><span>$${p.precio}</span></div>`;
-          textoDetalles += p.nombre + ", ";
+          let cant = p.cantidad || 1;
+          let subtotal = p.precio * cant;
+          totalMesa += subtotal;
+          itemsHTML += `<div style="display:flex; justify-content:space-between"><span>${cant}x ${p.nombre}</span><span>$${subtotal}</span></div>`;
+          textoDetalles += cant + "x " + p.nombre + ", ";
         });
         historialVentas.push({ hora: new Date().toLocaleTimeString(), mesa: m, total: totalMesa, detalles: textoDetalles.slice(0, -2) });
         
@@ -328,7 +351,7 @@
     }
     function guardarNuevoProducto(){
       let n=document.getElementById("prodNombre").value, pr=document.getElementById("prodPrecio").value, c=document.getElementById("prodCategoria")?.value;
-      if(n && pr && c){ menu.push({nombre:n,precio:parseFloat(pr),categoria:c}); guardar(); config(); }
+      if(n && pr && c){ menu.push({nombre:n,precio:parseFloat(pr),categoria:c, cantidad:1}); guardar(); config(); }
     }
     function reiniciarCaja(){ if(confirm("¿Limpiar historial?")){ ventasDia = 0; historialVentas = []; guardar(); config(); } }
     function verHistorial() {
@@ -339,16 +362,21 @@
       html += "<br><button onclick='config()'>Volver</button>";
       document.getElementById("app").innerHTML = html;
     }
+    
     function enviarWhatsApp(m) {
       if (!pedidos[m]) return;
       let texto = "*CASA GOURMET*\n*Mesa " + m + "*\n\n";
       let total = 0;
-      pedidos[m].forEach(p => { texto += "- " + p.nombre + ": $" + p.precio + "\n"; total += p.precio; });
+      pedidos[m].forEach(p => { 
+        let cant = p.cantidad || 1;
+        let subtotal = p.precio * cant;
+        texto += "- " + cant + "x " + p.nombre + ": $" + subtotal + "\n"; 
+        total += subtotal; 
+      });
       texto += "\n*TOTAL: $" + total + "*";
       window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(texto), '_blank');
     }
 
-    // REGISTRO DE SERVICE WORKER PARA MODO OFFLINE
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js').then(reg => console.log('Offline OK')).catch(err => console.log('Offline Error'));
