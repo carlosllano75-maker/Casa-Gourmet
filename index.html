@@ -287,7 +287,7 @@
           /* Modificado para que la observación salga en el ticket de pago */
           itemsHTML += `<div style="display:flex; justify-content:space-between"><span>${cant}x ${p.nombre}</span><span>$${subtotal}</span></div>`;
           if (p.observacion) {
-            itemsHTML += `<div style="text-align:left; font-size:14px; font-weight:normal; margin-top:-5px; margin-bottom:5px;">* Obs: ${p.observacion}</div>`;
+            itemsHTML += `<div style="text-align:left; font-size:18px; font-weight:bold; margin-top:-5px; margin-bottom:5px;">* Obs: ${p.observacion}</div>`;
             textoDetalles += cant + "x " + p.nombre + " (*" + p.observacion + "), ";
           } else {
             textoDetalles += cant + "x " + p.nombre + ", ";
