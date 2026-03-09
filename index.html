@@ -253,7 +253,7 @@
           let cant = p.cantidad || 1;
           let subtotal = p.precio * cant;
           total += subtotal; 
-          let txtObs = p.observacion ? `<br><small style="color:#f39c12">Nota: ${p.observacion}</small>` : "";
+          let txtObs = p.observacion ? `<br><span style="color:#f39c12;font_size:16px;font_weight:bold;">Nota: ${p.observacion}</span>` : "";
           
           /* Modificado para incluir el texto de la observación y el botón naranja (btn-obs) */
           html+=`<div class='item-pedido'>
