@@ -26,6 +26,7 @@
     button:active{opacity:0.7}
     .btn-danger{background:#ff4444 !important;color:#fff;padding:5px 10px}
     .btn-edit{background:#3498db !important;color:#fff;padding:5px 10px}
+    .btn-obs{background:#f39c12 !important;color:#fff;padding:5px 10px} /* Nuevo botón de notas */
     .lista{background:#111;padding:15px;border-radius:15px;margin:15px;border-left:4px solid #d4af37} 
     select, input{padding:12px;border-radius:10px;margin:8px 0;background:#222;color:#fff;border:1px solid #444;width:80%;max-width:300px}
     h3{color:#d4af37;margin-top:20px}
@@ -234,6 +235,17 @@
       guardar(); abrirMesa(m); 
     }
 
+    /* NUEVA FUNCIÓN PARA AGREGAR LA OBSERVACIÓN */
+    function agregarObservacion(m, i) {
+      let obsActual = pedidos[m][i].observacion || "";
+      let nuevaObs = prompt("Observación (Ej: Sin cebolla):", obsActual);
+      if (nuevaObs !== null) {
+        pedidos[m][i].observacion = nuevaObs;
+        guardar();
+        abrirMesa(m);
+      }
+    }
+
     function mostrarLista(m){ 
       let html="<div class='lista'><b>📝 Pedido:</b><br>"; let total=0; 
       if(pedidos[m]){ 
@@ -241,7 +253,17 @@
           let cant = p.cantidad || 1;
           let subtotal = p.precio * cant;
           total += subtotal; 
-          html+=`<div class='item-pedido'><span>${cant}x ${p.nombre}</span> <span>$${subtotal} <button class='btn-danger' onclick='eliminarItem("${m}",${i})'>x</button></span></div>`; 
+          let txtObs = p.observacion ? `<br><small style="color:#f39c12">Nota: ${p.observacion}</small>` : "";
+          
+          /* Modificado para incluir el texto de la observación y el botón naranja (btn-obs) */
+          html+=`<div class='item-pedido'>
+                    <div style="text-align:left">${cant}x ${p.nombre}${txtObs}</div> 
+                    <div>
+                      $${subtotal} 
+                      <button class='btn-obs' onclick='agregarObservacion("${m}",${i})'>📝</button> 
+                      <button class='btn-danger' onclick='eliminarItem("${m}",${i})'>x</button>
+                    </div>
+                 </div>`; 
         }); 
       } 
       return html + `<br><b>TOTAL: $${total}</b></div>`; 
@@ -261,9 +283,17 @@
           let cant = p.cantidad || 1;
           let subtotal = p.precio * cant;
           totalMesa += subtotal;
+          
+          /* Modificado para que la observación salga en el ticket de pago */
           itemsHTML += `<div style="display:flex; justify-content:space-between"><span>${cant}x ${p.nombre}</span><span>$${subtotal}</span></div>`;
-          textoDetalles += cant + "x " + p.nombre + ", ";
+          if (p.observacion) {
+            itemsHTML += `<div style="text-align:left; font-size:14px; font-weight:normal; margin-top:-5px; margin-bottom:5px;">* Obs: ${p.observacion}</div>`;
+            textoDetalles += cant + "x " + p.nombre + " (*" + p.observacion + "), ";
+          } else {
+            textoDetalles += cant + "x " + p.nombre + ", ";
+          }
         });
+        
         historialVentas.push({ hora: new Date().toLocaleTimeString(), mesa: m, total: totalMesa, detalles: textoDetalles.slice(0, -2) });
         
         document.getElementById("t-fecha").innerText = new Date().toLocaleString();
@@ -370,7 +400,9 @@
       pedidos[m].forEach(p => { 
         let cant = p.cantidad || 1;
         let subtotal = p.precio * cant;
-        texto += "- " + cant + "x " + p.nombre + ": $" + subtotal + "\n"; 
+        /* Modificado para incluir observación en WhatsApp */
+        let obsTexto = p.observacion ? " (*" + p.observacion + "*)" : "";
+        texto += "- " + cant + "x " + p.nombre + obsTexto + ": $" + subtotal + "\n"; 
         total += subtotal; 
       });
       texto += "\n*TOTAL: $" + total + "*";
