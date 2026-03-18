@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="logo-casa-gourmet.jpg">
   <link rel="manifest" href="manifest.json">
  
-  <script src="html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
  
   <style> 
     body{font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0b0b0b;color:#fff;margin:0;padding-bottom:50px;user-select:none;} 
@@ -26,7 +26,7 @@
     button:active{opacity:0.7}
     .btn-danger{background:#ff4444 !important;color:#fff;padding:5px 10px}
     .btn-edit{background:#3498db !important;color:#fff;padding:5px 10px}
-    .btn-obs{background:#f39c12 !important;color:#fff;padding:5px 10px} /* Nuevo botón de notas */
+    .btn-obs{background:#f39c12 !important;color:#fff;padding:5px 10px}
     .lista{background:#111;padding:15px;border-radius:15px;margin:15px;border-left:4px solid #d4af37} 
     select, input{padding:12px;border-radius:10px;margin:8px 0;background:#222;color:#fff;border:1px solid #444;width:80%;max-width:300px}
     h3{color:#d4af37;margin-top:20px}
@@ -34,15 +34,27 @@
     .item-pedido{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px dashed #333;padding-bottom:5px}
     .backup-box{background:#222; padding:15px; border-radius:15px; margin:15px auto; max-width:400px; border:1px dashed #444}
     
+    /* Configuración de Tickets Visuales */
     #ticket-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; display: none; justify-content: center; align-items: center; }
-    .ticket-termico { width: 240px; background: white; color: black; padding: 20px; font-family: 'Courier New', Courier, monospace; text-align: center; }
+    .ticket-termico { width: 260px; background: white; color: black; padding: 20px; font-family: 'Courier New', Courier, monospace; text-align: center; }
     .sep { border-top: 1px dashed #000; margin: 10px 0; }
  
+    /* ESTILOS DE IMPRESIÓN DEL SISTEMA */
+    #zona-impresion { display: none; }
+    @media print {
+      body * { visibility: hidden; }
+      #zona-impresion, #zona-impresion * { visibility: visible; display: block !important; }
+      #zona-impresion { position: absolute; left: 0; top: 0; width: 100%; text-align: center; }
+      #zona-impresion img { width: 100%; max-width: 300px; }
+    }
+
     #bloqueo { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0b0b0b; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
   </style> 
 </head> 
 <body> 
  
+  <div id="zona-impresion"></div>
+
   <div id="ticket-wrapper">
     <div id="ticket-visual" class="ticket-termico">
       <img src="logo-casa-gourmet.jpg" style="width: 220px; margin-bottom: 15px;"><br>
@@ -90,6 +102,7 @@
  
   <script> 
     const CLAVE_MAESTRA = "GOURMET2024";
+    const DIAS_LICENCIA = 3; 
  
     let menu=JSON.parse(localStorage.getItem("menu")||"[]"); 
     let pedidos=JSON.parse(localStorage.getItem("pedidos")||"{}"); 
@@ -98,6 +111,8 @@
     let listaMesas=JSON.parse(localStorage.getItem("listaMesas")||"[1,2,3,4,5,6,7,8,9,10,11,12]");
     let historialVentas=JSON.parse(localStorage.getItem("historialVentas")||"[]");
  
+    let printCharacteristic = null;
+
     function guardar(){
       localStorage.setItem("menu",JSON.stringify(menu));
       localStorage.setItem("pedidos",JSON.stringify(pedidos));
@@ -106,19 +121,57 @@
       localStorage.setItem("listaMesas",JSON.stringify(listaMesas));
       localStorage.setItem("historialVentas",JSON.stringify(historialVentas));
     }
+
+    async function conectarBluetooth() {
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2', '0000fee7-0000-1000-8000-00805f9b34fb']
+        });
+        const server = await device.gatt.connect();
+        const services = await server.getPrimaryServices();
+        let service = services.find(s => s.uuid.startsWith('000018f0') || s.uuid.startsWith('e7810a71') || s.uuid.startsWith('0000fee7')) || services[0];
+        const characteristics = await service.getCharacteristics();
+        printCharacteristic = characteristics.find(c => c.properties.write || c.properties.writeWithoutResponse);
+        alert("✅ Impresora conectada: " + device.name);
+      } catch (error) {
+        alert("❌ Error: " + error.message);
+      }
+    }
+
+    async function enviarTextoImpresora(texto) {
+      if (!printCharacteristic) return;
+      try {
+        let textoLimpio = texto.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); 
+        let encoder = new TextEncoder();
+        let textArray = encoder.encode(textoLimpio + "\n\n\n\n"); 
+        let CHUNK_SIZE = 20;
+        for (let i = 0; i < textArray.length; i += CHUNK_SIZE) {
+          await printCharacteristic.writeValue(textArray.slice(i, i + CHUNK_SIZE));
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+      } catch (e) { console.error(e); }
+    }
  
     function validarLicencia() {
       if(document.getElementById("passInput").value === CLAVE_MAESTRA) {
+        let fechaVencimiento = new Date().getTime() + (DIAS_LICENCIA * 24 * 60 * 60 * 1000);
         localStorage.setItem("licencia_activa", "true");
+        localStorage.setItem("fecha_vencimiento", fechaVencimiento);
         chequearAcceso();
       } else { alert("Clave incorrecta"); }
     }
  
     function chequearAcceso() {
-      if(localStorage.getItem("licencia_activa") === "true") {
+      let activa = localStorage.getItem("licencia_activa");
+      let vencimiento = parseInt(localStorage.getItem("fecha_vencimiento"));
+      let hoy = new Date().getTime();
+      if(activa === "true" && vencimiento && hoy < vencimiento) {
         document.getElementById("bloqueo").style.display = "none";
         document.getElementById("contenido-app").style.display = "block";
         verMesas();
+      } else {
+        document.getElementById("bloqueo").style.display = "flex";
       }
     }
  
@@ -137,6 +190,11 @@
  
     function config(){ 
       let html="<h3>Ajustes de Sistema</h3>";
+      let estadoBT = printCharacteristic ? "🟢 Conectada" : "🔴 Desconectada";
+      html+=`<div class="backup-box" style="border-color:#3498db">
+        <small style="color:#3498db">IMPRESORA BLUETOOTH (${estadoBT})</small><br>
+        <button onclick="conectarBluetooth()" style="background:#3498db; color:white; margin-top:10px">🖨️ Conectar Impresora</button>
+      </div>`;
       html+=`<div class="backup-box" style="border-color:#d4af37">
         <small style="color:#d4af37">VENTAS ACUMULADAS</small><br>
         <b style="font-size:24px">$${ventasDia}</b><br>
@@ -144,67 +202,11 @@
         <br><button onclick="reiniciarCaja()" style="background:#222; color:#ff4444; font-size:11px; margin-top:10px">Limpiar Todo</button>
       </div>`;
       html+="<button onclick='verHistorial()'>🕒 Ver Historial</button>";
-      html+="<br><button onclick='nuevoProducto()'>+ Nuevo Producto</button>";
-      html+=" <button onclick='configCategorias()'>📂 Categorías</button>";
-      html+=" <button onclick='configMesas()'>🍽️ Editar Mesas</button>";
+      html+="<br><button onclick='nuevoProducto()'>+ Nuevo Producto</button> <button onclick='configCategorias()'>📂 Categorías</button>";
       html += `<div class="backup-box"><button onclick="exportarMenu()">📤 Exportar</button> <button onclick="importarMenu()">📥 Importar</button></div>`;
-      
-      html+="<hr style='border:1px solid #333; margin:20px'><h3>📦 Gestionar Productos</h3>";
-      if(menu.length === 0) html+="<p>No hay productos guardados.</p>";
-      menu.forEach((p, index) => {
-        html += `<div class='card' style='margin:10px auto; max-width:400px; display:flex; justify-content:space-between; align-items:center'>
-          <div style='text-align:left'><b>${p.nombre}</b><br><small>$${p.precio} (${p.categoria})</small></div>
-          <div>
-            <button class='btn-edit' onclick='editarProducto(${index})'>✏️</button>
-            <button class='btn-danger' onclick='eliminarProducto(${index})'>🗑️</button>
-          </div>
-        </div>`;
-      });
       document.getElementById("app").innerHTML=html; 
     }
-
-    function exportarMenu() {
-        const dataStr = JSON.stringify({ menu, categorias, listaMesas });
-        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        const linkElement = document.createElement('a');
-        linkElement.setAttribute('href', dataUri);
-        linkElement.setAttribute('download', 'respaldo_casa_gourmet.json');
-        linkElement.click();
-    }
-
-    function importarMenu() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
-        input.onchange = e => {
-            const reader = new FileReader();
-            reader.onload = ev => {
-                try {
-                    const content = JSON.parse(ev.target.result);
-                    if(content.menu) {
-                        menu = content.menu;
-                        categorias = content.categorias;
-                        if(content.listaMesas) listaMesas = content.listaMesas;
-                        guardar(); config(); alert("✅ Importado");
-                    }
-                } catch(err) { alert("Error al importar"); }
-            };
-            reader.readAsText(e.target.files[0]);
-        }
-        input.click();
-    }
-
-    function eliminarProducto(index) {
-        if(confirm("¿Eliminar producto?")) { menu.splice(index, 1); guardar(); config(); }
-    }
-
-    function editarProducto(index) {
-        let p = menu[index];
-        let n = prompt("Nombre del producto:", p.nombre);
-        let pr = prompt("Precio:", p.precio);
-        if(n && pr) { menu[index].nombre = n; menu[index].precio = parseFloat(pr); guardar(); config(); }
-    }
-
+ 
     function abrirMesa(m){ 
       let html=`<h3>Mesa ${m}</h3>`; 
       let cats = [...new Set(menu.map(p=>p.categoria))];
@@ -213,7 +215,7 @@
       html+="</select><div id='productos-container'>"+mostrarProductos(m,"")+"</div>"; 
       html+=mostrarLista(m); 
       html+=`<br><button onclick='enviarWhatsApp("${m}")' style='background:#25D366; color:white; width:90%'>📱 WhatsApp</button>`;
-      html+=`<br><button onclick='pagarMesa("${m}")' style='background:#28a745; color:white; width:90%; margin-top:10px'>💰 Cobrar</button>`;
+      html+=`<br><button onclick='pagarMesa("${m}")' style='background:#28a745; color:white; width:90%; margin-top:10px'>💰 Cobrar e Imprimir</button>`;
       html+=`<br><button onclick='verMesas()' style='background:#444; color:white; margin-top:10px'>⬅️ Volver</button>`; 
       document.getElementById("app").innerHTML=html; 
     } 
@@ -235,34 +237,20 @@
       guardar(); abrirMesa(m); 
     }
 
-    /* NUEVA FUNCIÓN PARA AGREGAR LA OBSERVACIÓN */
     function agregarObservacion(m, i) {
-      let obsActual = pedidos[m][i].observacion || "";
-      let nuevaObs = prompt("Observación (Ej: Sin cebolla):", obsActual);
-      if (nuevaObs !== null) {
-        pedidos[m][i].observacion = nuevaObs;
-        guardar();
-        abrirMesa(m);
-      }
+      let nuevaObs = prompt("Observación:", pedidos[m][i].observacion || "");
+      if (nuevaObs !== null) { pedidos[m][i].observacion = nuevaObs; guardar(); abrirMesa(m); }
     }
 
     function mostrarLista(m){ 
       let html="<div class='lista'><b>📝 Pedido:</b><br>"; let total=0; 
       if(pedidos[m]){ 
         pedidos[m].forEach((p,i)=>{ 
-          let cant = p.cantidad || 1;
-          let subtotal = p.precio * cant;
-          total += subtotal; 
-          let txtObs = p.observacion ? `<br><span style="color:#f39c12;font_size:16px;font_weight:bold;">Nota: ${p.observacion}</span>` : "";
-          
-          /* Modificado para incluir el texto de la observación y el botón naranja (btn-obs) */
+          let cant = p.cantidad || 1; let subtotal = p.precio * cant; total += subtotal; 
+          let txtObs = p.observacion ? `<br><span style="color:#f39c12;font-size:16px;font-weight:bold;">Nota: ${p.observacion}</span>` : "";
           html+=`<div class='item-pedido'>
                     <div style="text-align:left">${cant}x ${p.nombre}${txtObs}</div> 
-                    <div>
-                      $${subtotal} 
-                      <button class='btn-obs' onclick='agregarObservacion("${m}",${i})'>📝</button> 
-                      <button class='btn-danger' onclick='eliminarItem("${m}",${i})'>x</button>
-                    </div>
+                    <div>$${subtotal} <button class='btn-obs' onclick='agregarObservacion("${m}",${i})'>📝</button> <button class='btn-danger' onclick='eliminarItem("${m}",${i})'>x</button></div>
                  </div>`; 
         }); 
       } 
@@ -270,93 +258,112 @@
     }
 
     function eliminarItem(m,i){ 
-      if(pedidos[m][i].cantidad > 1){ pedidos[m][i].cantidad--; }
-      else { pedidos[m].splice(i,1); }
+      if(pedidos[m][i].cantidad > 1) pedidos[m][i].cantidad--; 
+      else pedidos[m].splice(i,1); 
       guardar(); abrirMesa(m); 
     }
 
+    // --- FUNCIÓN CENTRAL DE PAGO E IMPRESIÓN ---
     function pagarMesa(m){
       if(!pedidos[m] || pedidos[m].length === 0) return;
       if(confirm("¿Cobrar e imprimir ticket?")){
-        let totalMesa = 0, itemsHTML = "", textoDetalles = "";
+        let totalMesa = 0, itemsHTML = "", textoBT = "   CASA GOURMET   \n\n";
+        textoBT += "MESA: " + m + "\nFECHA: " + new Date().toLocaleString() + "\n----------------\n";
+        
+        let textoDetalles = "";
         pedidos[m].forEach(p => {
-          let cant = p.cantidad || 1;
-          let subtotal = p.precio * cant;
-          totalMesa += subtotal;
-          
-          /* Modificado para que la observación salga en el ticket de pago */
+          let cant = p.cantidad || 1; let subtotal = p.precio * cant; totalMesa += subtotal;
           itemsHTML += `<div style="display:flex; justify-content:space-between"><span>${cant}x ${p.nombre}</span><span>$${subtotal}</span></div>`;
+          textoBT += `${cant}x ${p.nombre} $${subtotal}\n`;
           if (p.observacion) {
-            itemsHTML += `<div style="text-align:left; font-size:18px; font-weight:bold; margin-top:-5px; margin-bottom:5px;">* Obs: ${p.observacion}</div>`;
-            textoDetalles += cant + "x " + p.nombre + " (*" + p.observacion + "), ";
-          } else {
-            textoDetalles += cant + "x " + p.nombre + ", ";
+            itemsHTML += `<div style="text-align:left; font-size:18px; font-weight:bold;">* Obs: ${p.observacion}</div>`;
+            textoBT += ` * Obs: ${p.observacion}\n`;
           }
+          textoDetalles += `${cant}x ${p.nombre}${p.observacion ? '(*'+p.observacion+')' : ''}, `;
         });
         
-        historialVentas.push({ hora: new Date().toLocaleTimeString(), mesa: m, total: totalMesa, detalles: textoDetalles.slice(0, -2) });
+        textoBT += "----------------\nTOTAL: $" + totalMesa + "\n\nGracias por su visita!";
         
+        // 1. Bluetooth
+        enviarTextoImpresora(textoBT);
+
+        // 2. Preparar Ticket Visual
         document.getElementById("t-fecha").innerText = new Date().toLocaleString();
         document.getElementById("t-mesa").innerText="MESA: "+m;
         document.getElementById("t-items").innerHTML = itemsHTML;
         document.getElementById("t-total").innerText = "TOTAL: $" + totalMesa;
         
-        const wrapper = document.getElementById("ticket-wrapper");
-        document.getElementById("ticket-visual").style.display = "block";
-        document.getElementById("ticket-reporte").style.display = "none";
-        wrapper.style.display = "flex";
+        // 3. Captura html2canvas para Guardar PNG E Imprimir Sistema
+        const ticketElem = document.getElementById("ticket-visual");
+        document.getElementById("ticket-wrapper").style.display = "flex";
 
-        if (typeof html2canvas !== 'undefined') {
-            html2canvas(document.getElementById("ticket-visual"), { scale: 2 }).then(canvas => {
-                let link = document.createElement('a');
-                link.download = 'Ticket-' + m + '.png';
-                link.href = canvas.toDataURL("image/png");
-                link.click();
-                wrapper.style.display = "none";
-                ventasDia += totalMesa;
-                delete pedidos[m];
-                guardar(); verMesas();
-            }).catch(() => { wrapper.style.display = "none"; ventasDia += totalMesa; delete pedidos[m]; guardar(); verMesas(); });
-        } else {
-            wrapper.style.display = "none"; ventasDia += totalMesa; delete pedidos[m]; guardar(); verMesas();
-        }
+        html2canvas(ticketElem, { scale: 2 }).then(canvas => {
+          const imgData = canvas.toDataURL("image/png");
+          
+          // GUARDAR IMAGEN (Tu función original)
+          let link = document.createElement('a');
+          link.download = 'Ticket-' + m + '.png';
+          link.href = imgData;
+          link.click();
+
+          // PREPARAR ZONA DE IMPRESIÓN DEL SISTEMA
+          const zona = document.getElementById("zona-impresion");
+          zona.innerHTML = `<img src="${imgData}">`;
+          
+          setTimeout(() => {
+            window.print(); // Dispara el menú del sistema
+            document.getElementById("ticket-wrapper").style.display = "none";
+            
+            // Finalizar proceso de venta
+            historialVentas.push({ hora: new Date().toLocaleTimeString(), mesa: m, total: totalMesa, detalles: textoDetalles.slice(0, -2) });
+            ventasDia += totalMesa;
+            delete pedidos[m];
+            guardar(); 
+            verMesas();
+          }, 500);
+        });
       }
     }
-
+ 
     function imprimirReporte() {
       if(historialVentas.length === 0) return alert("Sin ventas.");
-      let itemsHTML = "";
+      let itemsHTML = "", textoBT = " REPORTE CIERRE \n\n";
       historialVentas.forEach(v => {
-        itemsHTML += `<div style="font-size:16px; border-bottom:1px solid #ddd; padding:5px 0">
-          <b>${v.hora} - Mesa ${v.mesa}</b><br>${v.detalles}<br><b>$${v.total}</b>
-        </div>`;
+        itemsHTML += `<div style="font-size:16px; border-bottom:1px solid #ddd; padding:5px 0"><b>${v.hora} - Mesa ${v.mesa}</b><br>${v.detalles}<br><b>$${v.total}</b></div>`;
+        textoBT += `${v.hora} M:${v.mesa} $${v.total}\n`;
       });
+      
       document.getElementById("r-fecha").innerText = new Date().toLocaleString();
       document.getElementById("r-items").innerHTML = itemsHTML;
       document.getElementById("r-total").innerText = "TOTAL DÍA: $" + ventasDia;
       document.getElementById("r-cantidad").innerText = "Ventas: " + historialVentas.length;
+      
+      enviarTextoImpresora(textoBT + "\nTOTAL: $" + ventasDia);
 
-      const wrapper = document.getElementById("ticket-wrapper");
       document.getElementById("ticket-visual").style.display = "none";
       document.getElementById("ticket-reporte").style.display = "block";
-      wrapper.style.display = "flex";
+      document.getElementById("ticket-wrapper").style.display = "flex";
 
-      if (typeof html2canvas !== 'undefined') {
-          setTimeout(() => {
-            html2canvas(document.getElementById("ticket-reporte"), {scale: 2}).then(canvas => {
-              let link = document.createElement('a');
-              link.download = 'CIERRE-' + new Date().toLocaleDateString() + '.png';
-              link.href = canvas.toDataURL("image/png");
-              link.click();
-              wrapper.style.display = "none";
-            });
-          }, 500);
-      } else {
-          wrapper.style.display = "none";
-          alert("Librería de impresión no disponible.");
-      }
+      html2canvas(document.getElementById("ticket-reporte"), {scale: 2}).then(canvas => {
+        const imgData = canvas.toDataURL("image/png");
+        
+        // Descargar Reporte
+        let link = document.createElement('a');
+        link.download = 'Reporte.png';
+        link.href = imgData;
+        link.click();
+
+        // Imprimir Reporte
+        document.getElementById("zona-impresion").innerHTML = `<img src="${imgData}">`;
+        setTimeout(() => {
+          window.print();
+          document.getElementById("ticket-wrapper").style.display = "none";
+          document.getElementById("ticket-reporte").style.display = "none";
+          document.getElementById("ticket-visual").style.display = "block";
+        }, 500);
+      });
     }
-
+ 
     function configCategorias(){
       let html="<h3>Categorías</h3><button onclick='nuevaCategoria()'>+ Nueva</button>";
       categorias.forEach((c,i)=>{ html+=`<div class='card'>${c} <button class='btn-danger' onclick='eliminarCategoria(${i})'>🗑️</button></div>`; });
@@ -365,13 +372,6 @@
     }
     function nuevaCategoria(){ let c=prompt("Nombre"); if(c && !categorias.includes(c)){ categorias.push(c); guardar(); configCategorias(); } }
     function eliminarCategoria(i){ if(confirm("¿Eliminar?")){ menu=menu.filter(p=>p.categoria!==categorias[i]); categorias.splice(i,1); guardar(); configCategorias(); } }
-    function configMesas() {
-      let html="<h3>Editar Mesas</h3>";
-      listaMesas.forEach((m, i) => { html += `<div class='card' style='margin:10px auto; max-width:300px; display:flex; justify-content:space-between; align-items:center'><span>Mesa ${m}</span><button class='btn-danger' onclick='eliminarMesa(${i})'>🗑️</button></div>`; });
-      html += "<br><button onclick='config()'>Volver</button>";
-      document.getElementById("app").innerHTML = html;
-    }
-    function eliminarMesa(i) { if(confirm("¿Eliminar?")) { listaMesas.splice(i, 1); guardar(); configMesas(); } }
     function agregarNuevaMesa() { let n = prompt("Nombre:"); if(n && !listaMesas.includes(n)) { listaMesas.push(n); guardar(); verMesas(); } }
     function nuevoProducto(){ 
       let html="<h3>Nuevo Producto</h3><input id='prodNombre' placeholder='Nombre'><br><input id='prodPrecio' type='number' placeholder='Precio'><br><select id='prodCategoria'>";
@@ -381,7 +381,7 @@
     }
     function guardarNuevoProducto(){
       let n=document.getElementById("prodNombre").value, pr=document.getElementById("prodPrecio").value, c=document.getElementById("prodCategoria")?.value;
-      if(n && pr && c){ menu.push({nombre:n,precio:parseFloat(pr),categoria:c, cantidad:1}); guardar(); config(); }
+      if(n && pr && c){ menu.push({nombre:n,precio:parseFloat(pr),categoria:c}); guardar(); config(); }
     }
     function reiniciarCaja(){ if(confirm("¿Limpiar historial?")){ ventasDia = 0; historialVentas = []; guardar(); config(); } }
     function verHistorial() {
@@ -398,23 +398,38 @@
       let texto = "*CASA GOURMET*\n*Mesa " + m + "*\n\n";
       let total = 0;
       pedidos[m].forEach(p => { 
-        let cant = p.cantidad || 1;
-        let subtotal = p.precio * cant;
-        /* Modificado para incluir observación en WhatsApp */
-        let obsTexto = p.observacion ? " (*" + p.observacion + "*)" : "";
-        texto += "- " + cant + "x " + p.nombre + obsTexto + ": $" + subtotal + "\n"; 
-        total += subtotal; 
+        let cant = p.cantidad || 1; let subtotal = p.precio * cant; total += subtotal;
+        texto += "- " + cant + "x " + p.nombre + (p.observacion ? " (*" + p.observacion + "*)" : "") + ": $" + subtotal + "\n"; 
       });
       texto += "\n*TOTAL: $" + total + "*";
       window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(texto), '_blank');
     }
 
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').then(reg => console.log('Offline OK')).catch(err => console.log('Offline Error'));
-      });
+    function exportarMenu() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({menu, categorias, listaMesas}));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "respaldo_casa_gourmet.json");
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
     }
 
+    function importarMenu() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.onchange = e => {
+            const reader = new FileReader();
+            reader.onload = ev => {
+                const content = JSON.parse(ev.target.result);
+                menu = content.menu; categorias = content.categorias; if(content.listaMesas) listaMesas = content.listaMesas;
+                guardar(); alert("✅ Sistema cargado"); location.reload();
+            };
+            reader.readAsText(e.target.files[0]);
+        }
+        input.click();
+    }
+ 
     chequearAcceso();
   </script> 
 </body> 
